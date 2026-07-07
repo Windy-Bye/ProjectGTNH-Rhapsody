@@ -1,0 +1,17 @@
+[
+	{
+	  "modid": "${modId}",
+	  "name": "${modName}",
+	  "description": "A rewrite version of ProjectE for GTNH.",
+	  "version": "${modVersion}",
+	  "mcversion": "${minecraftVersion}",
+	  "logoFile": "assets/projectgtnh/logo.png",
+	  "url": "",
+	  "updateUrl": "",
+	  "authorList": [ "filedw64" ],
+	  "credits": "Thanks to:\nsinkillerj, Moze_Intel - ProjectE creator.",
+	  "parent": "",
+	  "screenshots": [],
+	  "dependencies": []
+	}
+]

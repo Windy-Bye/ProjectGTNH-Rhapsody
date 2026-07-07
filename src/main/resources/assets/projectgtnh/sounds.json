@@ -1,0 +1,66 @@
+{
+    "item.pewindmagic":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/pewindmagic"
+        ]
+    },
+    "item.pewatermagic":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/pewatermagic"
+        ]
+    },
+    "item.pepower":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/pepower"
+        ]
+    },
+    "item.peheal":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/peheal"
+        ]
+    },
+    "item.pedestruct":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/pedestruct"
+        ]
+    },
+    "item.pecharge":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/pecharge"
+        ]
+    },
+    "item.peuncharge":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/peuncharge"
+        ]
+    },
+    "item.petransmute":
+    {
+        "category": "master",
+        "sounds":
+        [
+            "item/petransmute"
+        ]
+    }
+}
