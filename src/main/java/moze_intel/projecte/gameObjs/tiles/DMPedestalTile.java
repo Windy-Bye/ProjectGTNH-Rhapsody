@@ -5,6 +5,7 @@ import moze_intel.projecte.network.PacketHandler;
 import moze_intel.projecte.network.packets.SyncPedestalPKT;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -20,68 +21,45 @@ public class DMPedestalTile extends TileEmc implements IInventory
 	private int activityCooldown = 0;
 	public double centeredX, centeredY, centeredZ;
 
-	private boolean boundsCalculated = false;
-
-	public DMPedestalTile()
-	{
+	public DMPedestalTile() {
 		super();
 	}
 
 	@Override
 	public void updateEntity()
 	{
-		if (worldObj.isRemote)
-		{
-			if (worldObj.getChunkFromBlockCoords(xCoord, zCoord).isEmpty())
-			{
-				// Handle condition where this method is called even after the clientside chunk has unloaded.
-				// This will make IPedestalItems below crash with an NPE since the TE they get back is null
-				// Don't you love vanilla???
-				return;
-			}
-		}
+		// 失效检查
+		if (this.isInvalid())
+			return;
 
 		// 优化：坐标和边界框是固定的，只需计算一次，不必每Tick重复计算
-		if (!boundsCalculated)
-		{
+		if (effectBounds == null) {
 			centeredX = xCoord + 0.5;
 			centeredY = yCoord + 0.5;
 			centeredZ = zCoord + 0.5;
 			effectBounds = AxisAlignedBB.getBoundingBox(centeredX - 4.5, centeredY - 4.5, centeredZ - 4.5,
 				centeredX + 4.5, centeredY + 4.5, centeredZ + 4.5);
-			boundsCalculated = true;
 		}
 
-		if (!getActive()) return;
+		if (!isActive) return;
 
-		if (getItemStack() != null)
+		ItemStack stack = inventory[0];
+		if (stack != null)
 		{
-			ItemStack stack = getItemStack();
+			Item item = stack.getItem();
 			// 不但要有物品，而且必须是合法的 ProjectE 饰品
-			if (stack != null && stack.getItem() instanceof IPedestalItem iPedestalItem)
-			{
-				iPedestalItem.updateInPedestal(worldObj, xCoord, yCoord, zCoord);
-
+			if (item instanceof IPedestalItem pedestalItem) {
+				pedestalItem.updateInPedestal(worldObj, xCoord, yCoord, zCoord);
 				// 仅在客户端进行粒子运算，切断服务端的无效开销
-				if (worldObj.isRemote)
-				{
-					if (particleCooldown <= 0)
-					{
-						spawnParticles();
-						particleCooldown = 10;
-					}
-					else
-					{
-						particleCooldown--;
-					}
+				if (!worldObj.isRemote) return;
+
+				if (particleCooldown <= 0) {
+					spawnParticles();
+					particleCooldown = 10;
 				}
+				else particleCooldown--;
 			}
-			else
-			{
-				// 如果物品被拿走，或者被替换成了普通物品（作为展示台），自动静默关闭
-				setActive(false);
-			}
-			else particleCooldown--;
+			else setActive(false); // 如果物品被拿走，或者被替换成了普通物品（作为展示台），自动静默关闭
 		}
 		else if (!worldObj.isRemote)
 			setActive(false);
@@ -93,16 +71,10 @@ public class DMPedestalTile extends TileEmc implements IInventory
 		final int flameCount = worldObj.rand.nextInt(2) + 1;
 		for (int i = 0; i < flameCount; i++)
 		{
-			double d1 = (float)yCoord + worldObj.rand.nextFloat();
-			double d3, d4, d5;
-			int i1 = worldObj.rand.nextInt(2) * 2 - 1;
-			int j1 = worldObj.rand.nextInt(2) * 2 - 1;
-			d4 = ((double)worldObj.rand.nextFloat() - 0.5D) * 0.125D;
-			double d2 = (double)zCoord + 0.5D + 0.25D * (double)j1;
-			d5 = worldObj.rand.nextFloat() * 1.0F * (float)j1;
-			double d0 = (double)xCoord + 0.5D + 0.25D * (double)i1;
-			d3 = worldObj.rand.nextFloat() * 1.0F * (float)i1;
-			worldObj.spawnParticle("portal", d0, d1, d2, d3, d4, d5);
+			final double xOff = (worldObj.rand.nextInt(3) * 0.3) + 0.2; // 0.2, 0.5, 或 0.8
+			final double zOff = (worldObj.rand.nextInt(3) * 0.3) + 0.2;
+			worldObj.spawnParticle("flame", xCoord + xOff, yCoord + 0.3, zCoord + zOff,
+				0, 0, 0);
 		}
 
 		// 将原本的3个传送门粒子减少为1个
@@ -254,8 +226,7 @@ public class DMPedestalTile extends TileEmc implements IInventory
 	}
 
 	@Override
-	public boolean isItemValidForSlot(int p_94041_1_, ItemStack p_94041_2_)
-	{
+	public boolean isItemValidForSlot(int p_94041_1_, ItemStack p_94041_2_) {
 		return true; // 允许放入任何物品作为展示台
 	}
 
@@ -273,13 +244,10 @@ public class DMPedestalTile extends TileEmc implements IInventory
 	public void setActive(boolean newState)
 	{
 		// 如果尝试开启，但里面不是 ProjectE 饰品，则拒绝开启
-		if (newState)
-		{
-			ItemStack stack = getItemStack();
+		if (newState) {
+			ItemStack stack = inventory[0];
 			if (stack == null || !(stack.getItem() instanceof IPedestalItem))
-			{
 				newState = false;
-			}
 		}
 
 		if (newState != isActive && worldObj != null)
@@ -291,11 +259,11 @@ public class DMPedestalTile extends TileEmc implements IInventory
 				// 优化：切断服务端的无效粒子计算，仅客户端渲染
 				if (worldObj.isRemote)
 				{
-					for (int i = 0; i < worldObj.rand.nextInt(15) + 10; ++i)
+					for (int i = 0; i < worldObj.rand.nextInt(10) + 5; ++i)
 					{
 						this.worldObj.spawnParticle("witchMagic", centeredX + worldObj.rand.nextGaussian() * 0.13D,
-							yCoord + 1 + worldObj.rand.nextGaussian() * 0.13D,
-							centeredZ + worldObj.rand.nextGaussian() * 0.13D,
+							yCoord + 1 + worldObj.rand.nextGaussian() * MULTIPLIER,
+							centeredZ + worldObj.rand.nextGaussian() * MULTIPLIER,
 							0.0D, 0.0D, 0.0D);
 					}
 				}
@@ -306,11 +274,11 @@ public class DMPedestalTile extends TileEmc implements IInventory
 
 				if (worldObj.isRemote)
 				{
-					for (int i = 0; i < worldObj.rand.nextInt(15) + 10; ++i)
+					for (int i = 0; i < worldObj.rand.nextInt(10) + 5; ++i)
 					{
 						this.worldObj.spawnParticle("smoke", centeredX + worldObj.rand.nextGaussian() * 0.13D,
-							yCoord + 1 + worldObj.rand.nextGaussian() * 0.13D,
-							centeredZ + worldObj.rand.nextGaussian() * 0.13D,
+							yCoord + 1 + worldObj.rand.nextGaussian() * MULTIPLIER,
+							centeredZ + worldObj.rand.nextGaussian() * MULTIPLIER,
 							0.0D, 0.0D, 0.0D);
 					}
 				}
