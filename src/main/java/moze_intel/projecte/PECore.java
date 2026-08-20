@@ -74,7 +74,7 @@ public class PECore
 
 		if (!CONFIG_DIR.exists())
 		{
-			if(!CONFIG_DIR.mkdirs())
+			if (!CONFIG_DIR.mkdirs())
 				PELogger.logWarn("Cannot create dir \"config/ProjectE\"!");
 		}
 
@@ -82,9 +82,8 @@ public class PECore
 		ProjectEConfig.init(new File(CONFIG_DIR, "ProjectE.cfg"));
 
 		// 修改点：使用 Forge Event Bus 注册原生 BetterQuesting 事件监听器
-		if (Loader.isModLoaded("betterquesting")) {
+		if (Loader.isModLoaded("betterquesting"))
 			MinecraftForge.EVENT_BUS.register(new QuestLoader());
-		}
 
 		CustomEMCParser.init();
 

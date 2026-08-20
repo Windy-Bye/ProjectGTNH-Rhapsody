@@ -13,14 +13,17 @@ import betterquesting.api.utils.NBTConverter;
 import betterquesting.api.utils.UuidConverter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import moze_intel.projecte.config.ProjectEConfig;
 import moze_intel.projecte.utils.PELogger;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.UUID;
 
 public class QuestLoader {
@@ -30,20 +33,19 @@ public class QuestLoader {
 	@SubscribeEvent
 	@SuppressWarnings("deprecation")
 	public void onDatabaseLoad(DatabaseEvent.Load event) {
-		if ("false".equalsIgnoreCase(ProjectEConfig.questMode)) {
+		if ("false".equalsIgnoreCase(ProjectEConfig.questMode))
 			return;
-		}
 
 		IQuestDatabase questDB = QuestingAPI.getAPI(ApiReference.QUEST_DB);
 		IQuestLineDatabase lineDB = QuestingAPI.getAPI(ApiReference.LINE_DB);
 
 		if (questDB == null || lineDB == null) {
-			PELogger.logWarn("BetterQuesting API not found. Skipping ProjectE quest injection.");
+			PELogger.logError("BetterQuesting API not found. Skipping ProjectE quest injection.");
 			return;
 		}
 
 		// 动态判断语言并选择数据文件夹
-		String questDir = isChinese() ? "quest_zh" : "quest";
+		String questDir = isChinese() ? "zh_CN" : "en_US";
 		PELogger.logInfo("Injecting ProjectE Quests natively using language folder: " + questDir);
 
 		injectQuests(questDB, lineDB, questDir);
@@ -54,19 +56,17 @@ public class QuestLoader {
 	 */
 	private boolean isChinese() {
 		try {
-			// 如果是客户端，通过反射安全获取 Minecraft 的语言设置
-			if (cpw.mods.fml.common.FMLCommonHandler.instance().getEffectiveSide().isClient()) {
-				Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft");
-				Object mcInstance = mcClass.getMethod("getMinecraft").invoke(null);
-				Object gameSettings = mcClass.getField("gameSettings").get(mcInstance);
-				String lang = (String) gameSettings.getClass().getField("language").get(gameSettings);
+			// 如果是客户端，直接获取 Minecraft 的语言设置
+			if (FMLCommonHandler.instance().getEffectiveSide().isClient()) {
+				String lang = Minecraft.getMinecraft().gameSettings.language;
 				return lang != null && lang.toLowerCase().startsWith("zh");
 			}
-		} catch (Throwable t) {
-			// 反射失败或处于独立服务端环境，忽略错误并降级到系统语言
+		} catch (Throwable ignored) {
+			// 获取失败或处于独立服务端环境，忽略错误并降级到系统语言
+			// ps: 据说服务端的语言环境默认是 en_us
 		}
 		// 服务端降级判断：读取操作系统默认语言
-		return java.util.Locale.getDefault().getLanguage().toLowerCase().startsWith("zh");
+		return Locale.getDefault().getLanguage().toLowerCase().startsWith("zh");
 	}
 
 	private void injectQuests(IQuestDatabase questDB, IQuestLineDatabase lineDB, String questDir) {
@@ -158,7 +158,7 @@ public class QuestLoader {
 		}
 
 		try {
-			String linePropPath = "/assets/projecte/questline/" + folderName + "/QuestLine.json";
+			String linePropPath = "/assets/projecte/betterquesting/Questlines/" + folderName + "/QuestLine.json";
 			InputStream linePropIs = getClass().getResourceAsStream(linePropPath);
 			if (linePropIs != null) {
 				JsonObject json = GSON.fromJson(new InputStreamReader(linePropIs, StandardCharsets.UTF_8), JsonObject.class);
@@ -178,7 +178,7 @@ public class QuestLoader {
 				String uuidStr = fileName.substring(splitIdx + 1, fileName.length() - 5);
 				UUID questUuid = UuidConverter.decodeUuid(uuidStr);
 
-				String questPath = "/assets/projecte/" + questDir + "/" + folderName + "/" + fileName;
+				String questPath = "/assets/projecte/betterquesting/Quests" + questDir + "/" + folderName + "/" + fileName;
 				InputStream questIs = getClass().getResourceAsStream(questPath);
 				if (questIs != null) {
 					JsonObject json = GSON.fromJson(new InputStreamReader(questIs, StandardCharsets.UTF_8), JsonObject.class);
@@ -193,7 +193,7 @@ public class QuestLoader {
 					PELogger.logWarn("Missing quest data JSON: " + questPath);
 				}
 
-				String layoutPath = "/assets/projecte/questline/" + folderName + "/" + fileName;
+				String layoutPath = "/assets/projecte/betterquesting/Questlines/" + folderName + "/" + fileName;
 				InputStream layoutIs = getClass().getResourceAsStream(layoutPath);
 				if (layoutIs != null) {
 					JsonObject json = GSON.fromJson(new InputStreamReader(layoutIs, StandardCharsets.UTF_8), JsonObject.class);
