@@ -520,9 +520,7 @@ public class ObjHandler
 
 		//Tome
 		if (ProjectEConfig.craftableTome)
-		{
 			GameRegistry.addRecipe(new ItemStack(tome), "HML", "KBK", "LMH", 'L', new ItemStack(covalence, 1, 0), 'M', new ItemStack(covalence, 1, 1), 'H', new ItemStack(covalence, 1, 2), 'B', Items.book, 'K', new ItemStack(kleinStars, 1, 5));
-		}
 
 		//Manual
 		//GameRegistry.addShapelessRecipe(new ItemStack(manual, 1, 0), Items.book, new ItemStack(covalence, 1, 0));
@@ -557,8 +555,7 @@ public class ObjHandler
 		GameRegistry.addShapelessRecipe(new ItemStack(covalence, 40, 2), Items.diamond, Items.coal);
 
 		//Klein Stars
-		for (int i = 1; i < 6; i++)
-		{
+		for (int i = 1; i < 6; i++) {
 			ItemStack input = new ItemStack(kleinStars, 1, i - 1);
 			ItemStack output = new ItemStack(kleinStars, 1, i);
 			GameRegistry.addRecipe(new RecipeShapelessHidden(output, input, input, input, input));
