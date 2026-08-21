@@ -45,16 +45,14 @@ public class QuestLoader {
 		}
 
 		// 动态判断语言并选择数据文件夹
-		String questDir = isChinese() ? "zh_CN" : "en_US";
-		PELogger.logInfo("Injecting ProjectE Quests natively using language folder: " + questDir);
+		String lang = isChinese() ? "zh_CN" : "en_US";
+		PELogger.logInfo("Injecting ProjectE Quests natively using language folder: " + lang);
 
-		injectQuests(questDB, lineDB, questDir);
+		injectQuests(questDB, lineDB, lang);
 	}
 
-	/**
-	 * 判断当前环境是否为中文 (兼容单人客户端与独立服务端)
-	 */
-	private boolean isChinese() {
+	// 判断当前环境是否为中文 (兼容单人客户端与独立服务端)
+	private static boolean isChinese() {
 		try {
 			// 如果是客户端，直接获取 Minecraft 的语言设置
 			if (FMLCommonHandler.instance().getEffectiveSide().isClient()) {
@@ -69,9 +67,9 @@ public class QuestLoader {
 		return Locale.getDefault().getLanguage().toLowerCase().startsWith("zh");
 	}
 
-	private void injectQuests(IQuestDatabase questDB, IQuestLineDatabase lineDB, String questDir) {
+	private static void injectQuests(IQuestDatabase questDB, IQuestLineDatabase lineDB, String lang) {
 		// 1. 贤者之石阶段 (The Genesis of Alch)
-		loadChapter(questDB, lineDB, questDir, "TheGenesisofAlch-COUnjTnGSfCQDummrRQHag==", new String[]{
+		loadChapter(questDB, lineDB, lang, "TheGenesisofAlch-COUnjTnGSfCQDummrRQHag==", new String[]{
 			"AeternalisFuel-UX7OyYewTouSY16Y8alOnw==.json",
 			"AlchemicalBag-jIZKgKxXTJSHz4CYTrD2Cg==.json",
 			"AlchemicalChest-h7YQcliQRDGbL9sScH1jzA==.json",
@@ -95,7 +93,7 @@ public class QuestLoader {
 		});
 
 		// 2. 暗物质阶段 (The Mysterious Dark Matter)
-		loadChapter(questDB, lineDB, questDir, "TheMysteriousDar-0OWMJxgqQUGwjVILgtXx4Q==", new String[]{
+		loadChapter(questDB, lineDB, lang, "TheMysteriousDar-0OWMJxgqQUGwjVILgtXx4Q==", new String[]{
 			"AntiMatterRelayM-4_R6PhrhSAqpS3qTu3QOUA==.json",
 			"ArchangelsSmite--3qD0EXDSfOe18QpM7MqcA==.json",
 			"BlackHoleBand-06s2ZveVTk2FXX6yJ3GHoA==.json",
@@ -120,7 +118,7 @@ public class QuestLoader {
 		});
 
 		// 3. 红物质阶段 (The Searing Red Matter)
-		loadChapter(questDB, lineDB, questDir, "TheSearingRedMat-a6A8yGIISqG5LRCyMtTV3g==", new String[]{
+		loadChapter(questDB, lineDB, lang, "TheSearingRedMat-a6A8yGIISqG5LRCyMtTV3g==", new String[]{
 			"AnInfinityGemNoM-Yc1DdvXiS_61kyer4oS3Gg==.json",
 			"AntiMatterRelayM-wId9hLb-SxK7WUckZGTVYg==.json",
 			"ArcaneRing-NByfLWXPS3ixHoZxK-qJbw==.json",
@@ -145,7 +143,8 @@ public class QuestLoader {
 		});
 	}
 
-	private void loadChapter(IQuestDatabase questDB, IQuestLineDatabase lineDB, String questDir, String folderName, String[] files) {
+	private static void loadChapter(IQuestDatabase questDB, IQuestLineDatabase lineDB, String lang, String folderName, String[] files)
+	{
 		int fSplitIdx = folderName.indexOf('-');
 		if (fSplitIdx == -1) return;
 
@@ -153,20 +152,18 @@ public class QuestLoader {
 		UUID chapterUuid = UuidConverter.decodeUuid(folderName.substring(fSplitIdx + 1));
 
 		IQuestLine chapter = lineDB.get(chapterUuid);
-		if (chapter == null) {
+		if (chapter == null)
 			chapter = lineDB.createNew(chapterUuid);
-		}
 
 		try {
 			String linePropPath = "/assets/projecte/betterquesting/Questlines/" + folderName + "/QuestLine.json";
-			InputStream linePropIs = getClass().getResourceAsStream(linePropPath);
+			InputStream linePropIs = QuestLoader.class.getResourceAsStream(linePropPath);
 			if (linePropIs != null) {
 				JsonObject json = GSON.fromJson(new InputStreamReader(linePropIs, StandardCharsets.UTF_8), JsonObject.class);
 				NBTTagCompound nbt = NBTConverter.JSONtoNBT_Object(json, new NBTTagCompound(), true);
 				chapter.readFromNBT(nbt);
-			} else {
-				chapter.setProperty(NativeProps.NAME, chapterName);
 			}
+			else chapter.setProperty(NativeProps.NAME, chapterName);
 		} catch (Exception e) {
 			PELogger.logWarn("Failed to load QuestLine properties for: " + folderName);
 		}
@@ -178,37 +175,34 @@ public class QuestLoader {
 				String uuidStr = fileName.substring(splitIdx + 1, fileName.length() - 5);
 				UUID questUuid = UuidConverter.decodeUuid(uuidStr);
 
-				String questPath = "/assets/projecte/betterquesting/Quests" + questDir + "/" + folderName + "/" + fileName;
-				InputStream questIs = getClass().getResourceAsStream(questPath);
+				String questPath = "/assets/projecte/betterquesting/Quests/" + lang + "/" + folderName + "/" + fileName;
+				InputStream questIs = QuestLoader.class.getResourceAsStream(questPath);
 				if (questIs != null) {
 					JsonObject json = GSON.fromJson(new InputStreamReader(questIs, StandardCharsets.UTF_8), JsonObject.class);
 					NBTTagCompound nbt = NBTConverter.JSONtoNBT_Object(json, new NBTTagCompound(), true);
 
 					IQuest quest = questDB.get(questUuid);
-					if (quest == null) {
+					if (quest == null)
 						quest = questDB.createNew(questUuid);
-					}
 					quest.readFromNBT(nbt);
-				} else {
-					PELogger.logWarn("Missing quest data JSON: " + questPath);
 				}
+				else PELogger.logWarn("Missing quest data JSON: " + questPath);
 
 				String layoutPath = "/assets/projecte/betterquesting/Questlines/" + folderName + "/" + fileName;
-				InputStream layoutIs = getClass().getResourceAsStream(layoutPath);
+				InputStream layoutIs = QuestLoader.class.getResourceAsStream(layoutPath);
 				if (layoutIs != null) {
 					JsonObject json = GSON.fromJson(new InputStreamReader(layoutIs, StandardCharsets.UTF_8), JsonObject.class);
 					NBTTagCompound nbt = NBTConverter.JSONtoNBT_Object(json, new NBTTagCompound(), true);
 
-					IQuestLineEntry entry = chapter.get(questUuid);
-					if (entry == null) {
-						entry = chapter.createNew(questUuid);
-					}
-					entry.readFromNBT(nbt);
-				} else {
-					PELogger.logWarn("Missing quest layout JSON: " + layoutPath);
+					IQuestLineEntry questLine = chapter.get(questUuid);
+					if (questLine == null)
+						questLine = chapter.createNew(questUuid);
+					questLine.readFromNBT(nbt);
 				}
-			} catch (Exception e) {
-				PELogger.logWarn("Failed to load ProjectE quest file: " + fileName);
+				else PELogger.logWarn("Missing quest layout JSON: " + layoutPath);
+			}
+			catch (Exception e) {
+				PELogger.logError("Failed to load ProjectE quest file: " + fileName);
 				e.printStackTrace();
 			}
 		}

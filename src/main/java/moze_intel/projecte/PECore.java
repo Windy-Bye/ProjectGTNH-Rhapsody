@@ -57,7 +57,6 @@ public class PECore
 	public static final String MODID = "ProjectE";
 	public static final GameProfile FAKEPLAYER_GAMEPROFILE = new GameProfile(UUID.fromString("590e39c7-9fb6-471b-a4c2-c0e539b2423d"), "[ProjectE]");
 	public static File CONFIG_DIR;
-	public static File PREGENERATED_EMC_FILE;
 
 	@Instance(MODID)
 	public static PECore instance;
@@ -78,7 +77,6 @@ public class PECore
 				PELogger.logWarn("Cannot create dir \"config/ProjectE\"!");
 		}
 
-		PREGENERATED_EMC_FILE = new File(CONFIG_DIR, "pregenerated_emc.json");
 		ProjectEConfig.init(new File(CONFIG_DIR, "ProjectE.cfg"));
 
 		// 修改点：使用 Forge Event Bus 注册原生 BetterQuesting 事件监听器
@@ -116,7 +114,6 @@ public class PECore
 	public void postInit(FMLPostInitializationEvent event)
 	{
 		proxy.initializeManual();
-
 		Integration.init();
 	}
 
@@ -133,29 +130,20 @@ public class PECore
 		event.registerServerCommand(new ProjectECMD());
 
 		if (!ThreadCheckUpdate.hasRunServer())
-		{
 			new ThreadCheckUpdate(true).start();
-		}
 
 		if (!ThreadCheckUUID.hasRunServer())
-		{
 			new ThreadCheckUUID(true).start();
-		}
 
 		long start = System.currentTimeMillis();
-
 		CustomEMCParser.readUserData();
-
 		PELogger.logInfo("Starting server-side EMC mapping.");
-
 		EMCMapper.map();
-
 		PELogger.logInfo("Registered %d EMC values. (took %.3fs)", EMCMapper.emc.size(), (System.currentTimeMillis() - start) / 1e3);
 	}
 
 	@EventHandler
-	public void serverStopping(FMLServerStoppingEvent event)
-	{
+	public void serverStopping(FMLServerStoppingEvent event) {
 		TransmutationOffline.cleanAll();
 	}
 
