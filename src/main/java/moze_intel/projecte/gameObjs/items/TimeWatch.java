@@ -7,6 +7,11 @@ import com.google.common.collect.Sets;
 import cpw.mods.fml.common.Optional;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import moze_intel.projecte.api.item.IModeChanger;
+import moze_intel.projecte.api.item.IPedestalItem;
+import moze_intel.projecte.config.ProjectEConfig;
+import moze_intel.projecte.gameObjs.tiles.DMPedestalTile;
+import moze_intel.projecte.utils.WorldHelper;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.IGrowable;
@@ -27,11 +32,6 @@ import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraftforge.common.IPlantable;
 import net.minecraftforge.fluids.BlockFluidBase;
-import moze_intel.projecte.api.item.IModeChanger;
-import moze_intel.projecte.api.item.IPedestalItem;
-import moze_intel.projecte.config.ProjectEConfig;
-import moze_intel.projecte.gameObjs.tiles.DMPedestalTile;
-import moze_intel.projecte.utils.WorldHelper;
 
 import java.util.List;
 import java.util.Set;
@@ -39,7 +39,7 @@ import java.util.Set;
 @Optional.Interface(iface = "baubles.api.IBauble", modid = "Baubles")
 public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPedestalItem
 {
-	private static Set<String> internalBlacklist = Sets.newHashSet(
+	private static final Set<String> internalBlacklist = Sets.newHashSet(
 		"moze_intel.projecte.gameObjs.tiles.DMPedestalTile",
 		"Reika.ChromatiCraft.TileEntity.AOE.TileEntityAccelerator",
 		"com.sci.torcherino.tile.TileTorcherino",
@@ -66,20 +66,18 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 	{
 		if (!world.isRemote)
 		{
-			if (!ProjectEConfig.enableTimeWatch)
-			{
+			if (!ProjectEConfig.enableTimeWatch) {
 				player.addChatComponentMessage(new ChatComponentTranslation("pe.timewatch.disabled"));
 				return stack;
 			}
 
 			if (!stack.hasTagCompound())
-			{
 				stack.stackTagCompound = new NBTTagCompound();
-			}
 
 			byte current = getTimeBoost(stack);
 			setTimeBoost(stack, (byte) (current == 2 ? 0 : current + 1));
-			player.addChatComponentMessage(new ChatComponentTranslation("pe.timewatch.mode_switch", new ChatComponentTranslation(getTimeName(stack)).getUnformattedTextForChat()));
+			player.addChatComponentMessage(new ChatComponentTranslation("pe.timewatch.mode_switch",
+				new ChatComponentTranslation(getTimeName(stack)).getUnformattedTextForChat()));
 		}
 
 		return stack;
@@ -89,24 +87,24 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 	public void onUpdate(ItemStack stack, World world, Entity entity, int invSlot, boolean isHeld)
 	{
 		if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
-		if (!(entity instanceof EntityPlayer) || invSlot > 8 || !ProjectEConfig.enableTimeWatch) return;
+		if (!ProjectEConfig.enableTimeWatch || invSlot > 8 || !(entity instanceof EntityPlayer player)) return;
 
 		byte timeControl = getTimeBoost(stack);
 
-		if (world.getGameRules().getGameRuleBooleanValue("doDaylightCycle")) {
+		if (world.getGameRules().getGameRuleBooleanValue("doDaylightCycle"))
+		{
+			int tochange = (getCharge(stack) + 1) * 4;
 			if (timeControl == 1)
 			{
-				if (world.getWorldTime() + ((getCharge(stack) + 1) * 4) > Long.MAX_VALUE)
+				if (Long.MAX_VALUE - world.getWorldTime() < tochange)
 					world.setWorldTime(Long.MAX_VALUE);
-				else
-					world.setWorldTime((world.getWorldTime() + ((getCharge(stack) + 1) * 4)));
+				else world.setWorldTime(world.getWorldTime() + tochange);
 			}
 			else if (timeControl == 2)
 			{
-				if (world.getWorldTime() - ((getCharge(stack) + 1) * 4) < 0)
+				if (world.getWorldTime() - tochange < 0)
 					world.setWorldTime(0);
-				else
-					world.setWorldTime((world.getWorldTime() - ((getCharge(stack) + 1) * 4)));
+				else world.setWorldTime(world.getWorldTime() - tochange);
 			}
 		}
 
@@ -131,13 +129,10 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 		slowMobs(world, bBox, mobSlowdown);
 	}
 
-	private void slowMobs(World world, AxisAlignedBB bBox, float mobSlowdown)
-	{
+	private void slowMobs(World world, AxisAlignedBB bBox, float mobSlowdown) {
 		if (bBox == null) return;
 
-		for (Object obj : world.getEntitiesWithinAABB(EntityLiving.class, bBox))
-		{
-			Entity ent = (Entity) obj;
+		for (Entity ent : world.getEntitiesWithinAABB(EntityLiving.class, bBox)) {
 			if (ent.motionX != 0) ent.motionX *= mobSlowdown;
 			if (ent.motionZ != 0) ent.motionZ *= mobSlowdown;
 		}
@@ -170,9 +165,7 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 				}
 
 				if (!tile.isInvalid() && !internalBlacklist.contains(tile.getClass().getName()))
-				{
 					tile.updateEntity();
-				}
 			}
 		}
 		return false;
@@ -244,77 +237,65 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 		};
 	}
 
-	private byte getTimeBoost(ItemStack stack)
-	{
+	private byte getTimeBoost(ItemStack stack) {
 		return stack.stackTagCompound.getByte("TimeMode");
 	}
 
-	private void setTimeBoost(ItemStack stack, byte time)
-	{
+	private void setTimeBoost(ItemStack stack, byte time) {
 		stack.stackTagCompound.setByte("TimeMode", (byte) MathHelper.clamp_int(time, 0, 2));
 	}
 
-	public double getEmcPerTick(int charge)
-	{
+	public double getEmcPerTick(int charge) {
 		int actualCharge = charge + 1;
 		return (10.0D * actualCharge) / 20.0D;
 	}
 
 	@Override
-	public byte getMode(ItemStack stack)
-	{
+	public byte getMode(ItemStack stack) {
 		return (byte) stack.getItemDamage();
 	}
 
 	@Override
 	public void changeMode(EntityPlayer player, ItemStack stack)
 	{
-		if (stack.getItemDamage() == 0)
-		{
+		if (stack.getItemDamage() == 0) {
 			stack.setItemDamage(1);
 			playChargeSound(player);
 		}
-		else
-		{
+		else {
 			stack.setItemDamage(0);
 			playUnChargeSound(player);
 		}
 	}
 
-	public void playChargeSound(EntityPlayer player)
-	{
+	public void playChargeSound(EntityPlayer player) {
 		player.worldObj.playSoundAtEntity(player, "projecte:clock", 0.8F, 1.25F);
 	}
 
-	public void playUnChargeSound(EntityPlayer player)
-	{
+	public void playUnChargeSound(EntityPlayer player) {
 		player.worldObj.playSoundAtEntity(player, "projecte:clock", 0.8F, 0.85F);
 	}
 
 	@SideOnly(Side.CLIENT)
-	public IIcon getIconFromDamage(int dmg)
-	{
+	public IIcon getIconFromDamage(int dmg) {
 		if (dmg == 0) return ringOff;
 		return ringOn;
 	}
 
 	@Override
 	@SideOnly(Side.CLIENT)
-	public void registerIcons(IIconRegister register)
-	{
+	public void registerIcons(IIconRegister register) {
 		ringOff = register.registerIcon(this.getTexture("rings", "time_watch_off"));
 		ringOn = register.registerIcon(this.getTexture("rings", "time_watch_on"));
 	}
 
 	@Override
 	@SideOnly(Side.CLIENT)
-	public void addInformation(ItemStack stack, EntityPlayer player, List<String> list, boolean bool)
-	{
+	public void addInformation(ItemStack stack, EntityPlayer player, List<String> list, boolean bool) {
 		list.add(StatCollector.translateToLocal("pe.timewatch.tooltip1"));
 		list.add(StatCollector.translateToLocal("pe.timewatch.tooltip2"));
 
-		if (stack.hasTagCompound())
-		{
+		if (stack.hasTagCompound()) {
 			list.add(String.format(StatCollector.translateToLocal("pe.timewatch.mode"),
 				StatCollector.translateToLocal(getTimeName(stack))));
 		}
@@ -322,15 +303,13 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 
 	@Override
 	@Optional.Method(modid = "Baubles")
-	public baubles.api.BaubleType getBaubleType(ItemStack itemstack)
-	{
+	public baubles.api.BaubleType getBaubleType(ItemStack itemstack) {
 		return BaubleType.BELT;
 	}
 
 	@Override
 	@Optional.Method(modid = "Baubles")
-	public void onWornTick(ItemStack stack, EntityLivingBase player)
-	{
+	public void onWornTick(ItemStack stack, EntityLivingBase player) {
 		this.onUpdate(stack, player.worldObj, player, 0, false);
 	}
 
@@ -344,37 +323,33 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 
 	@Override
 	@Optional.Method(modid = "Baubles")
-	public boolean canEquip(ItemStack itemstack, EntityLivingBase player)
-	{
+	public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
 		return true;
 	}
 
 	@Override
 	@Optional.Method(modid = "Baubles")
-	public boolean canUnequip(ItemStack itemstack, EntityLivingBase player)
-	{
+	public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
 		return true;
 	}
 
 	@Override
 	public void updateInPedestal(World world, int x, int y, int z)
 	{
-		if (!world.isRemote && ProjectEConfig.enableTimeWatch)
-		{
-			AxisAlignedBB bBox = ((DMPedestalTile) world.getTileEntity(x, y, z)).getEffectBounds();
+		if (world.isRemote || !ProjectEConfig.enableTimeWatch) return;
 
-			// 台座模式同样限定 1 毫秒超时
-			long stopTime = System.nanoTime() + 1_000_000L;
+		AxisAlignedBB bBox = ((DMPedestalTile) world.getTileEntity(x, y, z)).getEffectBounds();
 
-			if (ProjectEConfig.timePedBonus > 0) {
-				if (speedUpTileEntities(world, ProjectEConfig.timePedBonus, bBox, stopTime)) return;
-				speedUpRandomTicks(world, ProjectEConfig.timePedBonus, bBox, stopTime);
-			}
+		// 台座模式同样限定 1 毫秒超时
+		long stopTime = System.nanoTime() + 1_000_000L;
 
-			if (ProjectEConfig.timePedMobSlowness < 1.0F) {
-				slowMobs(world, bBox, ProjectEConfig.timePedMobSlowness);
-			}
+		if (ProjectEConfig.timePedBonus > 0) {
+			if (speedUpTileEntities(world, ProjectEConfig.timePedBonus, bBox, stopTime)) return;
+			if (speedUpRandomTicks(world, ProjectEConfig.timePedBonus, bBox, stopTime)) return;
 		}
+
+		if (ProjectEConfig.timePedMobSlowness < 1.0F)
+			slowMobs(world, bBox, ProjectEConfig.timePedMobSlowness);
 	}
 
 	@Override
@@ -382,19 +357,17 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 	{
 		List<String> list = Lists.newArrayList();
 		if (ProjectEConfig.timePedBonus > 0) {
-			list.add(EnumChatFormatting.BLUE +
-				String.format(StatCollector.translateToLocal("pe.timewatch.pedestal1"), ProjectEConfig.timePedBonus));
+			list.add(EnumChatFormatting.BLUE + String.format(
+				StatCollector.translateToLocal("pe.timewatch.pedestal1"), ProjectEConfig.timePedBonus));
 		}
-		if (ProjectEConfig.timePedMobSlowness < 1.0F)
-		{
-			list.add(EnumChatFormatting.BLUE +
-				String.format(StatCollector.translateToLocal("pe.timewatch.pedestal2"), ProjectEConfig.timePedMobSlowness));
+		if (ProjectEConfig.timePedMobSlowness < 1.0F) {
+			list.add(EnumChatFormatting.BLUE + String.format(
+				StatCollector.translateToLocal("pe.timewatch.pedestal2"), ProjectEConfig.timePedMobSlowness));
 		}
 		return list;
 	}
 
-	public static void blacklist(Class<? extends TileEntity> clazz)
-	{
+	public static void blacklist(Class<? extends TileEntity> clazz) {
 		internalBlacklist.add(clazz.getName());
 	}
 }
