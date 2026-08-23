@@ -19,6 +19,7 @@ public final class ProjectEConfig {
 	public static boolean showPedestalTooltipInGUI;
 
 	public static boolean enableTimeWatch;
+	public static boolean enableArcaneTablet;
 
 	public static boolean craftableTome;
 	public static boolean altCraftingMat;
@@ -33,8 +34,8 @@ public final class ProjectEConfig {
 	public static int swrgPedCooldown;
 	public static int soulPedCooldown;
 	public static int volcanitePedCooldown;
-
 	public static int zeroPedCooldown;
+
 	public static int timePedBonus;
 	public static float timePedMobSlowness;
 	public static boolean interdictionMode;
@@ -47,14 +48,15 @@ public final class ProjectEConfig {
 	public static float katarDeathAura;
 	public static int projectileCooldown;
 	public static boolean disableAllRadiusMining;
-  
-	public static boolean enableArcaneTablet;
 	public static int gemChestCooldown;
+
+	public static String sciFormat;
+
+	public static boolean ignitionRingIgniteBlocks;
+	public static boolean zeroRingPlaceSnow;
 
 	// GTNH Integration Config
 	public static String questMode;
-
-	public static String sciFormat;
 
 	// nbt 白名单 与 动态 nbt emc 计算
 	public static String[] nbtWhitelistConfig;
@@ -63,9 +65,6 @@ public final class ProjectEConfig {
 	// 消除 Item.itemRegistry.getNameForObject() 开销
 	public static Map<Item, List<String>> nbtDistinctlist = new HashMap<>();
 	public static Map<String, Double> dynamicEmcNbt = new HashMap<>();
-
-	// 提取常量
-	private static final String[] GT_STATS_KEYS = {"PrimaryMaterial", "SecondaryMaterial", "MaxDamage"};
 
 	public static void init(File configFile) {
 
@@ -90,38 +89,30 @@ public final class ProjectEConfig {
 			sciFormat = config.getString("sciFormat", "misc", "e", "The string used as a separator for scientific notation in tooltips");
 
 			enableTimeWatch = config.getBoolean("enableTimeWatch", "items", true, "Enable Watch of Flowing Time");
-
 			enableArcaneTablet = config.getBoolean("enableArcaneTablet", "items", false, "Enable Arcane Transmutation Tablet");
+
+			ignitionRingIgniteBlocks = config.getBoolean("ignitionRingIgniteBlocks", "items", false, "If true, the Ignition Ring will passively ignite surrounding blocks.");
+			zeroRingPlaceSnow = config.getBoolean("zeroRingPlaceSnow", "items", false, "If true, the Zero Ring will passively freeze water and place snow around the player.");
 
 			craftableTome = config.getBoolean("craftableTome", "difficulty", false, "The Tome of Knowledge can be crafted.");
 			altCraftingMat = config.getBoolean("altCraftingMat", "difficulty", false, "If true some ProjectE items require a nether star instead of a diamond.");
 			useOldDamage = config.getBoolean("useOldDamage", "difficulty", false, "If true the old damage amounts from ProjectE 1.4.7 and before will be used for weapons.");
 			offensiveAbilities = config.getBoolean("offensiveAbilities", "difficulty", true, "Set to false to disable Gem Armor offensive abilities (helmet zap and chestplate explosion)");
-			katarDeathAura = config.getFloat("katarDeathAura", "difficulty", 1000F, 0, Integer.MAX_VALUE, "Amount of damage Katar 'C' key deals");
+			katarDeathAura = config.getFloat("katarDeathAura", "difficulty", 1000F, 0, Integer.MAX_VALUE, "Amount of damage Katar AOE deals");
 
 			config.getCategory("pedestalcooldown").setComment("Cooldown for various items within the pedestal. A cooldown of -1 will disable the functionality.\n" +
 				"A cooldown of 0 will cause the actions to happen every tick. Use caution as a very low value could cause TPS issues.");
 
 			archangelPedCooldown = config.getInt("archangelPedCooldown", "pedestalcooldown", 40, -1, Integer.MAX_VALUE, "Delay between Archangel Smite shooting arrows while in the pedestal.");
-
 			bodyPedCooldown = config.getInt("bodyPedCooldown", "pedestalcooldown", 10, -1, Integer.MAX_VALUE, "Delay between Body Stone healing 0.5 shanks while in the pedestal.");
-
 			evertidePedCooldown = config.getInt("evertidePedCooldown", "pedestalcooldown", 20, -1, Integer.MAX_VALUE, "Delay between Evertide Amulet trying to start rain while in the pedestal.");
-
 			harvestPedCooldown = config.getInt("harvestPedCooldown", "pedestalcooldown", 10, -1, Integer.MAX_VALUE, "Delay between Harvest Goddess trying to grow and harvest while in the pedestal.");
-
 			ignitePedCooldown = config.getInt("ignitePedCooldown", "pedestalcooldown", 40, -1, Integer.MAX_VALUE, "Delay between Ignition Ring trying to light entities on fire while in the pedestal.");
-
 			lifePedCooldown = config.getInt("lifePedCooldown", "pedestalcooldown", 5, -1, Integer.MAX_VALUE, "Delay between Life Stone healing both food and hunger by 0.5 shank/heart while in the pedestal.");
-
 			repairPedCooldown = config.getInt("repairPedCooldown", "pedestalcooldown", 20, -1, Integer.MAX_VALUE, "Delay between Talisman of Repair trying to repair player items while in the pedestal.");
-
 			swrgPedCooldown = config.getInt("swrgPedCooldown", "pedestalcooldown", 70, -1, Integer.MAX_VALUE, "Delay between SWRG trying to smite mobs while in the pedestal.");
-
 			soulPedCooldown = config.getInt("soulPedCooldown", "pedestalcooldown", 10, -1, Integer.MAX_VALUE, "Delay between Soul Stone healing 0.5 hearts while in the pedestal.");
-
 			volcanitePedCooldown = config.getInt("volcanitePedCooldown", "pedestalcooldown", 20, -1, Integer.MAX_VALUE, "Delay between Volcanite Amulet trying to stop rain while in the pedestal.");
-
 			zeroPedCooldown = config.getInt("zeroPedCooldown", "pedestalcooldown", 40, -1, Integer.MAX_VALUE, "Delay between Zero Ring trying to extinguish entities and freezing ground while in the pedestal.");
 
 			timePedBonus = config.getInt("timePedBonus", "effects", 18, 0, 256, "Bonus ticks given by the Watch of Flowing Time while in the pedestal. 0 = effectively no bonus.");
