@@ -10,7 +10,7 @@ import moze_intel.projecte.utils.EMCHelper;
 public abstract class ItemPE extends Item
 {
 	public ItemPE() {
-		this.setCreativeTab(ObjHandler.cTab);
+		this.setCreativeTab(ObjHandler.tab);
 	}
 
 	@Override
