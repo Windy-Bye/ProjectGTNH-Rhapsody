@@ -11,10 +11,13 @@ import net.minecraft.block.BlockGrass;
 import net.minecraft.block.BlockGravel;
 import net.minecraft.block.BlockSand;
 import net.minecraft.block.material.Material;
+import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
@@ -22,6 +25,8 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
+
+import java.util.List;
 
 public class RedStar extends PEToolBase
 {
@@ -63,6 +68,13 @@ public class RedStar extends PEToolBase
 		for (String str : secondaryClasses)
 			setHarvestLevel(str, 4);
 		setHarvestLevel(pePrimaryToolClass, 4);
+	}
+
+	@Override
+	public void getSubItems(Item item, CreativeTabs tab, List<ItemStack> list) {
+		ItemStack star = new ItemStack(this);
+		star.addEnchantment(Enchantment.fortune, 3);
+		list.add(star);
 	}
 
 	@Override
