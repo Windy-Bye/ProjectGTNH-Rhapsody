@@ -26,8 +26,7 @@ public class ItemArcaneTransmutationTablet extends ItemPE {
 	}
 
 	@SideOnly(Side.CLIENT)
-	public void registerIcons(IIconRegister register)
-	{
-		this.itemIcon = register.registerIcon(this.getTexture("arcane_transmutation_tablet"));
+	public void registerIcons(IIconRegister register) {
+		this.itemIcon = register.registerIcon(getTexture("arcane_transmutation_tablet"));
 	}
 }

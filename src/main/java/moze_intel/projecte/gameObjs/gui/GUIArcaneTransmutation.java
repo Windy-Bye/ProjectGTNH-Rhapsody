@@ -4,6 +4,7 @@ import moze_intel.projecte.PECore;
 import moze_intel.projecte.gameObjs.container.ArcaneTransmutationContainer;
 import moze_intel.projecte.network.PacketHandler;
 import moze_intel.projecte.network.packets.ArcaneTabletButtonPKT;
+import moze_intel.projecte.utils.Constants;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -19,7 +20,7 @@ import java.util.List;
 public class GUIArcaneTransmutation extends GuiContainer {
 
 	private static final ResourceLocation texture = new ResourceLocation(PECore.MODID.toLowerCase(), "textures/gui/arcane_transmutation_tablet.png");
-	private ArcaneTransmutationContainer container;
+	private final ArcaneTransmutationContainer container;
 	private GuiTextField textBoxFilter;
 
 	public GUIArcaneTransmutation(InventoryPlayer invPlayer, EntityPlayer player) {
@@ -41,7 +42,7 @@ public class GUIArcaneTransmutation extends GuiContainer {
 	}
 
 	// 判断鼠标是否在指定矩形区域内
-	private boolean isMouseOver(int mouseX, int mouseY, int x, int y, int width, int height) {
+	private static boolean isMouseOver(int mouseX, int mouseY, int x, int y, int width, int height) {
 		return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
 	}
 
@@ -58,25 +59,22 @@ public class GUIArcaneTransmutation extends GuiContainer {
 				container.transmutationInventory.filter = "";
 				container.transmutationInventory.searchpage = 0;
 				container.transmutationInventory.updateOutputs();
-			} else {
-				this.textBoxFilter.mouseClicked(mouseX, mouseY, mouseButton);
 			}
-		} else {
-			this.textBoxFilter.mouseClicked(mouseX, mouseY, mouseButton);
+			else this.textBoxFilter.mouseClicked(mouseX, mouseY, mouseButton);
 		}
+		else this.textBoxFilter.mouseClicked(mouseX, mouseY, mouseButton);
 
 		boolean isShift = GuiScreen.isShiftKeyDown();
 
 		// 左侧按键区域
-		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 16, 9, 9)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 16, 9, 9))
 			PacketHandler.sendToServer(new ArcaneTabletButtonPKT(isShift ? 1 : 0));
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 26, 9, 9)) {
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 26, 9, 9))
 			PacketHandler.sendToServer(new ArcaneTabletButtonPKT(isShift ? 3 : 2));
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 36, 9, 9)) {
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 36, 9, 9))
 			this.textBoxFilter.setFocused(true);
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 61, 9, 9)) {
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 61, 9, 9))
 			PacketHandler.sendToServer(new ArcaneTabletButtonPKT(4));
-		}
 
 		// 右侧转化桌翻页按键
 		if (isMouseOver(mouseX, mouseY, guiLeft + 83, guiTop + 20, 18, 18)) {
@@ -84,7 +82,8 @@ public class GUIArcaneTransmutation extends GuiContainer {
 				container.transmutationInventory.searchpage--;
 				container.transmutationInventory.updateOutputs();
 			}
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 227, guiTop + 20, 18, 18)) {
+		}
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 227, guiTop + 20, 18, 18)) {
 			container.transmutationInventory.searchpage++;
 			container.transmutationInventory.updateOutputs();
 		}
@@ -93,17 +92,16 @@ public class GUIArcaneTransmutation extends GuiContainer {
 	@Override
 	protected void keyTyped(char c, int keyCode) {
 		if (this.textBoxFilter.isFocused()) {
-			if (keyCode == Keyboard.KEY_ESCAPE) {
+			if (keyCode == Keyboard.KEY_ESCAPE)
 				this.textBoxFilter.setFocused(false);
-			} else {
+			else {
 				this.textBoxFilter.textboxKeyTyped(c, keyCode);
 				container.transmutationInventory.filter = this.textBoxFilter.getText().toLowerCase();
 				container.transmutationInventory.searchpage = 0;
 				container.transmutationInventory.updateOutputs();
 			}
-		} else {
-			super.keyTyped(c, keyCode);
 		}
+		else super.keyTyped(c, keyCode);
 	}
 
 	@Override
@@ -121,29 +119,23 @@ public class GUIArcaneTransmutation extends GuiContainer {
 		// 渲染原生按键高亮贴图
 		boolean isShift = GuiScreen.isShiftKeyDown();
 
-		if (isMouseOver(mouseX, mouseY, guiLeft + 83, guiTop + 20, 18, 18)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 83, guiTop + 20, 18, 18))
 			this.drawTexturedModalRect(guiLeft + 83, guiTop + 20, 196, 0, 18, 18);
-		}
-		if (isMouseOver(mouseX, mouseY, guiLeft + 227, guiTop + 20, 18, 18)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 227, guiTop + 20, 18, 18))
 			this.drawTexturedModalRect(guiLeft + 227, guiTop + 20, 215, 0, 18, 18);
-		}
-		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 16, 9, 9)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 16, 9, 9))
 			this.drawTexturedModalRect(guiLeft + 5, guiTop + 16, 234, 0, 9, 9);
-		}
-		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 26, 9, 9)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 26, 9, 9))
 			this.drawTexturedModalRect(guiLeft + 5, guiTop + 26, 234, 0, 9, 9);
-		}
-		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 36, 9, 9)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 36, 9, 9))
 			this.drawTexturedModalRect(guiLeft + 5, guiTop + 36, 234, 0, 9, 9);
-		}
-		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 61, 9, 9)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 61, 9, 9))
 			this.drawTexturedModalRect(guiLeft + 5, guiTop + 61, 234, isShift ? 10 : 0, 9, 9);
-		}
 	}
 
 	@Override
 	protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-		String emc = "EMC: " + moze_intel.projecte.utils.Constants.EMC_FORMATTER.get().format(container.transmutationInventory.emc);
+		String emc = "EMC: " + Constants.EMC_FORMATTER.format(container.transmutationInventory.emc);
 		int fontWidth = this.fontRendererObj.getStringWidth(emc);
 		this.fontRendererObj.drawString(emc, 76 + (176 - fontWidth) / 2, -10, 0xFFFFFF);
 	}
@@ -154,21 +146,19 @@ public class GUIArcaneTransmutation extends GuiContainer {
 
 		this.textBoxFilter.drawTextBox();
 
-		List<String> tooltip = new ArrayList<String>();
+		List<String> tooltip = new ArrayList<>();
 		boolean isShift = GuiScreen.isShiftKeyDown();
 
-		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 16, 9, 9)) {
+		if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 16, 9, 9))
 			tooltip.add("Rotate " + (isShift ? "(Counter-Clockwise)" : "(Clockwise)"));
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 26, 9, 9)) {
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 26, 9, 9))
 			tooltip.add(isShift ? "Spread" : "Balance");
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 36, 9, 9)) {
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 36, 9, 9))
 			tooltip.add("Focus Search Box");
-		} else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 61, 9, 9)) {
+		else if (isMouseOver(mouseX, mouseY, guiLeft + 5, guiTop + 61, 9, 9))
 			tooltip.add("Clear Crafting Grid");
-		}
 
-		if (!tooltip.isEmpty()) {
+		if (!tooltip.isEmpty())
 			this.drawHoveringText(tooltip, mouseX, mouseY, this.fontRendererObj);
-		}
 	}
 }
