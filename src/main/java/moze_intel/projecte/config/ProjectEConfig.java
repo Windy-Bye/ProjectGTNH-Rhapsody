@@ -47,6 +47,8 @@ public final class ProjectEConfig {
 	public static float katarDeathAura;
 	public static int projectileCooldown;
 	public static boolean disableAllRadiusMining;
+  
+	public static boolean enableArcaneTablet;
 	public static int gemChestCooldown;
 
 	// GTNH Integration Config
@@ -88,6 +90,8 @@ public final class ProjectEConfig {
 			sciFormat = config.getString("sciFormat", "misc", "e", "The string used as a separator for scientific notation in tooltips");
 
 			enableTimeWatch = config.getBoolean("enableTimeWatch", "items", true, "Enable Watch of Flowing Time");
+
+			enableArcaneTablet = config.getBoolean("enableArcaneTablet", "items", false, "Enable Arcane Transmutation Tablet");
 
 			craftableTome = config.getBoolean("craftableTome", "difficulty", false, "The Tome of Knowledge can be crafted.");
 			altCraftingMat = config.getBoolean("altCraftingMat", "difficulty", false, "If true some ProjectE items require a nether star instead of a diamond.");
