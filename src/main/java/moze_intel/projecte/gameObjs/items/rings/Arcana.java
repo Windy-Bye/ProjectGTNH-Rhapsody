@@ -41,11 +41,10 @@ import java.util.List;
 @Optional.Interface(iface = "baubles.api.IBauble", modid = "Baubles")
 public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProvider, IFireProtector, IExtraFunction, IProjectileShooter
 {
-	private IIcon[] icons = new IIcon[4];
-	private IIcon[] iconsOn = new IIcon[4];
+	private final IIcon[] icons = new IIcon[4];
+	private final IIcon[] iconsOn = new IIcon[4];
 
-	public Arcana()
-	{
+	public Arcana() {
 		super();
 		setUnlocalizedName("arcana_ring");
 		setMaxStackSize(1);
@@ -54,14 +53,12 @@ public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProv
 	}
 
 	@Override
-	public boolean doesContainerItemLeaveCraftingGrid(ItemStack stack)
-	{
+	public boolean doesContainerItemLeaveCraftingGrid(ItemStack stack) {
 		return false;
 	}
 
 	@Override
-	public byte getMode(ItemStack stack)
-	{
+	public byte getMode(ItemStack stack) {
 		return (byte)stack.getItemDamage();
 	}
 
@@ -69,44 +66,38 @@ public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProv
 	@Override
 	public void changeMode(EntityPlayer player, ItemStack stack)
 	{
-		if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+		if (stack.stackTagCompound == null)
+			stack.stackTagCompound = new NBTTagCompound();
 
-		if (player.isSneaking())
-		{
-			boolean active = stack.getTagCompound().getBoolean("Active");
-			stack.getTagCompound().setBoolean("Active", !active);
+		if (player.isSneaking()) {
+			boolean active = stack.stackTagCompound.getBoolean("Active");
+			stack.stackTagCompound.setBoolean("Active", !active);
 			player.worldObj.playSoundAtEntity(player, !active ? "projecte:item.peheal" : "projecte:item.peuncharge", 1.0F, 1.0F);
 		}
-		else
-		{
-			stack.setItemDamage((stack.getItemDamage() + 1) % 4);
-		}
+		else stack.setItemDamage((stack.getItemDamage() + 1) % 4);
 	}
 
 	// 被动优化
 	private void tick(ItemStack stack, World world, EntityPlayerMP player)
 	{
-		if(stack.getTagCompound().getBoolean("Active"))
+		if (stack.stackTagCompound.getBoolean("Active"))
 		{
 			AxisAlignedBB box = player.boundingBox.expand(5, 5, 5);
-			switch(stack.getItemDamage())
+			switch (stack.getItemDamage())
 			{
 				case 0: // Zero
-					if (ProjectEConfig.zeroRingPlaceSnow) WorldHelper.freezeInBoundingBox(world, box, player, true);
-					for (EntityLivingBase ent : (List<EntityLivingBase>) world.getEntitiesWithinAABB(EntityLivingBase.class, box))
-					{
-						if (ent instanceof IMob && (!ent.isPotionActive(Potion.moveSlowdown) || ent.getActivePotionEffect(Potion.moveSlowdown).getDuration() < 10))
-						{
+					if (ProjectEConfig.zeroRingPlaceSnow)
+						WorldHelper.freezeInBoundingBox(world, box, player, true);
+					for (EntityLivingBase ent : world.getEntitiesWithinAABB(EntityLivingBase.class, box))
+						if (ent instanceof IMob && (!ent.isPotionActive(Potion.moveSlowdown) || ent.getActivePotionEffect(Potion.moveSlowdown).getDuration() < 20))
 							ent.addPotionEffect(new PotionEffect(Potion.moveSlowdown.id, 60, 2));
-						}
-					}
 					break;
 				case 1: // Ignition
-					if (ProjectEConfig.ignitionRingIgniteBlocks) WorldHelper.igniteNearby(world, player);
-					for (EntityLivingBase ent : (List<EntityLivingBase>) world.getEntitiesWithinAABB(EntityLivingBase.class, box))
-					{
-						if (ent instanceof IMob && !ent.isBurning()) ent.setFire(3);
-					}
+					if (ProjectEConfig.ignitionRingIgniteBlocks)
+						WorldHelper.igniteNearby(world, player);
+					for (EntityLivingBase ent : world.getEntitiesWithinAABB(EntityLivingBase.class, box))
+						if (ent instanceof IMob)
+							ent.setFire(3);
 					break;
 				case 2: // Harvest
 					WorldHelper.growNearbyRandomly(true, world, player.posX, player.posY, player.posZ, player);
@@ -121,15 +112,15 @@ public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProv
 	@Override
 	public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean held)
 	{
-		if(stack.stackTagCompound == null) stack.setTagCompound(new NBTTagCompound());
-		if(world.isRemote || slot > 8 || !(entity instanceof EntityPlayerMP)) return;
-		tick(stack, world, (EntityPlayerMP)entity);
+		if (stack.stackTagCompound == null)
+			stack.stackTagCompound = new NBTTagCompound();
+		if (world.isRemote || slot > 8 || !(entity instanceof EntityPlayerMP entityPlayerMP)) return;
+		tick(stack, world, entityPlayerMP);
 	}
 
 	@Override
 	@Optional.Method(modid = "Baubles")
-	public BaubleType getBaubleType(ItemStack stack)
-	{
+	public BaubleType getBaubleType(ItemStack stack) {
 		return BaubleType.RING;
 	}
 
@@ -137,183 +128,95 @@ public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProv
 	@Optional.Method(modid = "Baubles")
 	public void onWornTick(ItemStack stack, EntityLivingBase entity)
 	{
-		if(stack.stackTagCompound == null) stack.setTagCompound(new NBTTagCompound());
-		if(entity.worldObj.isRemote || !(entity instanceof EntityPlayerMP)) return;
-		tick(stack, entity.worldObj, (EntityPlayerMP)entity);
+		if (stack.stackTagCompound == null)
+			stack.stackTagCompound = new NBTTagCompound();
+		if (entity.worldObj.isRemote || !(entity instanceof EntityPlayerMP entityPlayerMP)) return;
+		tick(stack, entity.worldObj, entityPlayerMP);
 	}
 
 	@Override
 	@Optional.Method(modid = "Baubles")
 	public void onEquipped(ItemStack stack, EntityLivingBase player) {}
+
 	@Override
 	@Optional.Method(modid = "Baubles")
 	public void onUnequipped(ItemStack stack, EntityLivingBase player) {}
+
 	@Override
 	@Optional.Method(modid = "Baubles")
 	public boolean canEquip(ItemStack stack, EntityLivingBase player) { return true; }
+
 	@Override
 	@Optional.Method(modid = "Baubles")
 	public boolean canUnequip(ItemStack stack, EntityLivingBase player) { return true; }
 
 	@Override
-	public IIcon getIcon(ItemStack stack, int pass)
-	{
+	public IIcon getIcon(ItemStack stack, int pass) {
 		return getIconIndex(stack);
 	}
 
 	@Override
-	public IIcon getIconIndex(ItemStack stack)
-	{
-		boolean active = stack.hasTagCompound() && stack.getTagCompound().getBoolean("Active");
+	public IIcon getIconIndex(ItemStack stack) {
+		boolean active = stack.stackTagCompound != null && stack.stackTagCompound.getBoolean("Active");
 		return (active ? iconsOn : icons)[MathHelper.clamp_int(stack.getItemDamage(), 0, 3)];
 	}
 
 	@Override
-	public void registerIcons(IIconRegister register)
-	{
-		for(int i = 0; i < 4; i++) icons[i] = register.registerIcon(this.getTexture("rings", "arcana_" + i));
-		for(int i = 0; i < 4; i++) iconsOn[i] = register.registerIcon(this.getTexture("rings", "arcana_" + i + "_on"));
+	public void registerIcons(IIconRegister register) {
+		for (int i = 0; i < 4; i++)
+			icons[i] = register.registerIcon(this.getTexture("rings", "arcana_" + i));
+		for (int i = 0; i < 4; i++)
+			iconsOn[i] = register.registerIcon(this.getTexture("rings", "arcana_" + i + "_on"));
 		itemIcon = icons[0];
 	}
 
 	@Override
 	public void addInformation(ItemStack stack, EntityPlayer player, List<String> list, boolean b)
 	{
-		if(stack.hasTagCompound())
-		{
-			if(!stack.stackTagCompound.getBoolean("Active"))
-			{
+		if (stack.stackTagCompound != null) {
+			if (!stack.stackTagCompound.getBoolean("Active"))
 				list.add(EnumChatFormatting.RED + StatCollector.translateToLocal("pe.arcana.inactive"));
-			}
-			else
-			{
-				list.add(StatCollector.translateToLocal("pe.arcana.mode") + EnumChatFormatting.AQUA + StatCollector.translateToLocal("pe.arcana.mode." + stack.getItemDamage()));
-			}
+			else list.add(StatCollector.translateToLocal("pe.arcana.mode") + EnumChatFormatting.AQUA + StatCollector.translateToLocal("pe.arcana.mode." + stack.getItemDamage()));
 		}
 	}
 
-	// Shift+右键
 	@Override
 	public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player)
 	{
-		if(!world.isRemote && stack.hasTagCompound() && stack.getTagCompound().getBoolean("Active") && player.isSneaking())
-		{
-			// Config 拦截
-			if (!ProjectEConfig.enableArcanaShiftRMB) return stack;
-
-			int mode = stack.getItemDamage();
-			AxisAlignedBB bigBox = player.boundingBox.expand(10, 10, 10);
-			List<EntityLivingBase> hostiles = world.getEntitiesWithinAABB(EntityLivingBase.class, bigBox);
-
-			switch(mode)
-			{
-				case 0: // Zero
-					terraform(world, bigBox, 0);
-					for (EntityLivingBase ent : hostiles)
-					{
-						if (ent instanceof IMob)
-						{
-							if (ent.getEntityData().getBoolean("PE_InnerFire")) {
-								ent.setDead(); // 即死
-							} else {
-								ent.getEntityData().setBoolean("PE_InnerIce", true);
-								ent.addPotionEffect(new PotionEffect(Potion.moveSlowdown.id, Integer.MAX_VALUE, 9)); // 永久缓慢 10
-							}
-						}
-					}
-					world.playSoundAtEntity(player, "projecte:item.pepower", 1.0F, 1.0F);
-					break;
-
-				case 1: // Ignition
-					terraform(world, bigBox, 1);
-					for (EntityLivingBase ent : hostiles)
-					{
-						if (ent instanceof IMob)
-						{
-							if (ent.getEntityData().getBoolean("PE_InnerIce")) {
-								ent.setDead(); // 冰火交汇：即死！
-							} else {
-								ent.getEntityData().setBoolean("PE_InnerFire", true);
-							}
-						}
-					}
-					world.playSoundAtEntity(player, "projecte:item.pepower", 1.0F, 1.0F);
-					break;
-
-				case 2: // Harvest
-					player.getFoodStats().addStats(20, 20.0F);
-					world.playSoundAtEntity(player, "projecte:item.peheal", 1.0F, 1.0F);
-					break;
-
-				case 3: // SWRG
-					for (EntityLivingBase ent : hostiles)
-					{
-						if (ent instanceof IMob)
-						{
-							world.addWeatherEffect(new EntityLightningBolt(world, ent.posX, ent.posY, ent.posZ));
-							ent.motionY += 2.5D; // 卷上高空摔死
-							ent.velocityChanged = true;
-						}
-					}
-					world.playSoundAtEntity(player, "projecte:item.pewindmagic", 1.0F, 1.0F);
-					break;
+		if (!world.isRemote) {
+			if (stack.stackTagCompound == null) {
+				stack.stackTagCompound = new NBTTagCompound();
+				stack.stackTagCompound.setBoolean("Active", true);
 			}
+			else stack.stackTagCompound.setBoolean("Active", !stack.stackTagCompound.getBoolean("Active"));
 		}
 		return stack;
-	}
-
-	private void terraform(World world, AxisAlignedBB box, int type)
-	{
-		int minX = MathHelper.floor_double(box.minX), minY = MathHelper.floor_double(box.minY), minZ = MathHelper.floor_double(box.minZ);
-		int maxX = MathHelper.floor_double(box.maxX), maxY = MathHelper.floor_double(box.maxY), maxZ = MathHelper.floor_double(box.maxZ);
-
-		for (int x = minX; x <= maxX; x++) {
-			for (int y = minY; y <= maxY; y++) {
-				for (int z = minZ; z <= maxZ; z++) {
-					if (!world.blockExists(x, y, z)) continue;
-					Block block = world.getBlock(x, y, z);
-
-					if (type == 0 && (block == Blocks.water || block == Blocks.flowing_water)) {
-						world.setBlock(x, y, z, Blocks.ice, 0, 3);
-					}
-					else if (type == 1) {
-						Material mat = block.getMaterial();
-						if (block == Blocks.grass) world.setBlock(x, y, z, Blocks.dirt, 0, 3);
-						else if (block == Blocks.cobblestone) world.setBlock(x, y, z, Blocks.stone, 0, 3);
-						else if (block.isWood(world, x, y, z) || mat == Material.plants || mat == Material.leaves || mat == Material.vine) {
-							world.setBlockToAir(x, y, z);
-						}
-					}
-				}
-			}
-		}
 	}
 
 	@Override
 	public void doExtraFunction(ItemStack stack, EntityPlayer player)
 	{
 		World world = player.worldObj;
-		if(world.isRemote) return;
+		if (world.isRemote || !(player instanceof EntityPlayerMP entityPlayerMP)) return;
 
-		switch(stack.getItemDamage())
-		{
-			case 1: // ignition
-				switch(MathHelper.floor_double((double)(player.rotationYaw * 4.0F / 360.0F) + 0.5) & 3)
-				{
-					case 0: case 2:
-					for(int x = (int) (player.posX - 30); x <= player.posX + 30; x++)
-						for(int y = (int) (player.posY - 5); y <= player.posY + 5; y++)
-							for(int z = (int) (player.posZ - 3); z <= player.posZ + 3; z++)
-								if(world.isAirBlock(x, y, z)) PlayerHelper.checkedPlaceBlock(((EntityPlayerMP) player), x, y, z, Blocks.fire, 0);
-					break;
-					case 1: case 3:
-					for(int x = (int) (player.posX - 3); x <= player.posX + 3; x++)
-						for(int y = (int) (player.posY - 5); y <= player.posY + 5; y++)
-							for(int z = (int) (player.posZ - 30); z <= player.posZ + 30; z++)
-								if(world.isAirBlock(x, y, z)) PlayerHelper.checkedPlaceBlock(((EntityPlayerMP) player), x, y, z, Blocks.fire, 0);
-					break;
-				}
-				break;
+		if (stack.getItemDamage() != 1) return;
+
+		final int dir = MathHelper.floor_double(player.rotationYaw / 90.0 + 0.5) & 3;
+
+		// ignition
+		if (dir == 0 || dir == 2) {
+			for (int x = (int) (player.posX - 30); x <= player.posX + 30; x++)
+				for (int z = (int) (player.posZ - 3); z <= player.posZ + 3; z++)
+					for (int y = (int) (player.posY - 5); y <= player.posY + 5; y++)
+						if (world.isAirBlock(x, y, z))
+							PlayerHelper.checkedPlaceBlock(entityPlayerMP, x, y, z, Blocks.fire, 0);
+		}
+		else {
+			for (int x = (int) (player.posX - 3); x <= player.posX + 3; x++)
+				for (int z = (int) (player.posZ - 30); z <= player.posZ + 30; z++)
+					for (int y = (int) (player.posY - 5); y <= player.posY + 5; y++)
+						if (world.isAirBlock(x, y, z))
+							PlayerHelper.checkedPlaceBlock(entityPlayerMP, x, y, z, Blocks.fire, 0);
 		}
 	}
 
@@ -321,9 +224,9 @@ public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProv
 	public boolean shootProjectile(EntityPlayer player, ItemStack stack)
 	{
 		World world = player.worldObj;
-		if(world.isRemote) return false;
+		if (world.isRemote) return false;
 
-		switch(stack.getItemDamage())
+		switch (stack.getItemDamage())
 		{
 			case 0:
 				world.spawnEntityInWorld(new EntitySnowball(world, player));
@@ -342,6 +245,7 @@ public class Arcana extends ItemPE implements IBauble, IModeChanger, IFlightProv
 
 	@Override
 	public boolean canProtectAgainstFire(ItemStack stack, EntityPlayerMP player) { return true; }
+
 	@Override
 	public boolean canProvideFlight(ItemStack stack, EntityPlayerMP player) { return true; }
 }

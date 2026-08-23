@@ -28,43 +28,36 @@ public class VoidRing extends GemEternalDensity implements IPedestalItem, IExtra
 	@SideOnly(Side.CLIENT)
 	private IIcon void_on;
 
-	public VoidRing()
-	{
+	public VoidRing() {
 		this.setUnlocalizedName("void_ring");
 	}
 
 	@Override
-	public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld)
-	{
+	public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld) {
 		super.onUpdate(stack, world, entity, slot, isHeld);
 		ObjHandler.blackHole.onUpdate(stack, world, entity, slot, isHeld);
-
 		// 移除了糟糕的 NBT 冷却读写逻辑，解放了每 tick 的性能开销
 	}
 
 	@Override
-	public void updateInPedestal(World world, int x, int y, int z)
-	{
+	public void updateInPedestal(World world, int x, int y, int z) {
 		((IPedestalItem) ObjHandler.blackHole).updateInPedestal(world, x, y, z);
 	}
 
 	@Override
-	public List<String> getPedestalDescription()
-	{
+	public List<String> getPedestalDescription() {
 		return ((IPedestalItem) ObjHandler.blackHole).getPedestalDescription();
 	}
 
 	@Override
 	@SideOnly(Side.CLIENT)
-	public IIcon getIconFromDamage(int dmg)
-	{
+	public IIcon getIconFromDamage(int dmg) {
 		return dmg == 0 ? void_off : void_on;
 	}
 
 	@Override
 	@SideOnly(Side.CLIENT)
-	public void registerIcons(IIconRegister register)
-	{
+	public void registerIcons(IIconRegister register) {
 		void_off = register.registerIcon(this.getTexture("rings", "void_off"));
 		void_on = register.registerIcon(this.getTexture("rings", "void_on"));
 	}
@@ -75,23 +68,17 @@ public class VoidRing extends GemEternalDensity implements IPedestalItem, IExtra
 		// 使用世界时间戳替代 NBT 计算冷却
 		long lastTeleport = player.getEntityData().getLong("PE_VoidRingCooldown");
 		if (player.worldObj.getTotalWorldTime() - lastTeleport < 10)
-		{
 			return;
-		}
 
 		Vec3 c = PlayerHelper.getBlockLookingAt(player, 64);
 		if (c == null)
-		{
 			c = PlayerHelper.getLookVec(player, 32).getRight();
-		}
 
 		EnderTeleportEvent event = new EnderTeleportEvent(player, c.xCoord, c.yCoord, c.zCoord, 0);
 		if (!MinecraftForge.EVENT_BUS.post(event))
 		{
 			if (player.isRiding())
-			{
 				player.mountEntity(null);
-			}
 
 			player.setPositionAndUpdate(event.targetX, event.targetY, event.targetZ);
 			player.worldObj.playSoundAtEntity(player, "mob.endermen.portal", 1.0F, 1.0F);
@@ -103,15 +90,13 @@ public class VoidRing extends GemEternalDensity implements IPedestalItem, IExtra
 	}
 
 	@Override
-	public boolean updateInAlchBag(ItemStack[] inv, EntityPlayer player, ItemStack stack)
-	{
+	public boolean updateInAlchBag(ItemStack[] inv, EntityPlayer player, ItemStack stack) {
 		((IAlchBagItem) ObjHandler.blackHole).updateInAlchBag(inv, player, stack);
 		return super.updateInAlchBag(inv, player, stack); // Gem of Eternal Density
 	}
 
 	@Override
-	public void updateInAlchChest(World world, int x, int y, int z, ItemStack stack)
-	{
+	public void updateInAlchChest(World world, int x, int y, int z, ItemStack stack) {
 		super.updateInAlchChest(world, x, y, z, stack); // Gem of Eternal Density
 		((IAlchChestItem) ObjHandler.blackHole).updateInAlchChest(world, x, y, z, stack);
 	}
