@@ -1,6 +1,5 @@
 package moze_intel.projecte;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -20,9 +19,6 @@ import cpw.mods.fml.common.event.FMLServerStoppedEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.registry.GameRegistry;
-import net.minecraft.block.Block;
-import net.minecraft.item.Item;
-import net.minecraftforge.common.MinecraftForge;
 import moze_intel.projecte.config.CustomEMCParser;
 import moze_intel.projecte.config.ProjectEConfig;
 import moze_intel.projecte.emc.EMCMapper;
@@ -46,6 +42,9 @@ import moze_intel.projecte.utils.AchievementHandler;
 import moze_intel.projecte.utils.Constants;
 import moze_intel.projecte.utils.GuiHandler;
 import moze_intel.projecte.utils.PELogger;
+import net.minecraft.block.Block;
+import net.minecraft.item.Item;
+import net.minecraftforge.common.MinecraftForge;
 
 import java.io.File;
 import java.util.List;
@@ -64,18 +63,14 @@ public class PECore
 	@SidedProxy(clientSide = "moze_intel.projecte.proxies.ClientProxy", serverSide = "moze_intel.projecte.proxies.ServerProxy")
 	public static IProxy proxy;
 
-	public static final List<String> uuids = Lists.newArrayList();
+	public static final List<String> AUTHOR_UUID = Lists.newArrayList("f8afe105-6f53-4f95-bb79-efb4662005ab", "a2449286-6fed-4d1f-9fe7-d75df67b5a76");
 
 	@EventHandler
-	public void preInit(FMLPreInitializationEvent event)
-	{
+	public void preInit(FMLPreInitializationEvent event) {
 		CONFIG_DIR = new File(event.getModConfigurationDirectory(), "ProjectE");
 
-		if (!CONFIG_DIR.exists())
-		{
-			if (!CONFIG_DIR.mkdirs())
-				PELogger.logWarn("Cannot create dir \"config/ProjectE\"!");
-		}
+		if (!CONFIG_DIR.exists() && !CONFIG_DIR.mkdirs())
+			PELogger.logWarn("Cannot create dir \"config/ProjectE\"!");
 
 		ProjectEConfig.init(new File(CONFIG_DIR, "ProjectE.cfg"));
 
@@ -103,30 +98,26 @@ public class PECore
 	}
 
 	@EventHandler
-	public void load(FMLInitializationEvent event)
-	{
+	public void load(FMLInitializationEvent event) {
 		proxy.registerKeyBinds();
 		proxy.registerRenderers();
 		AchievementHandler.init();
 	}
 
 	@EventHandler
-	public void postInit(FMLPostInitializationEvent event)
-	{
+	public void postInit(FMLPostInitializationEvent event) {
 		proxy.initializeManual();
 		Integration.init();
 	}
 
 	@EventHandler
-	public void loadComplete(FMLLoadCompleteEvent event)
-	{
+	public void loadComplete(FMLLoadCompleteEvent event) {
 		ObjHandler.registerPhiloStoneSmelting();
 		PELogger.logInfo("Registered PhiloStone Smelting Recipe!");
 	}
 
 	@EventHandler
-	public void serverStarting(FMLServerStartingEvent event)
-	{
+	public void serverStarting(FMLServerStartingEvent event) {
 		event.registerServerCommand(new ProjectECMD());
 
 		if (!ThreadCheckUpdate.hasRunServer())
@@ -148,8 +139,7 @@ public class PECore
 	}
 
 	@EventHandler
-	public void serverQuit(FMLServerStoppedEvent event)
-	{
+	public void serverQuit(FMLServerStoppedEvent event) {
 		TileEntityHandler.clearAll();
 		PELogger.logDebug("Cleared tile entity maps.");
 
@@ -165,63 +155,40 @@ public class PECore
 	}
 
 	@EventHandler
-	public void onIMCMessage(FMLInterModComms.IMCEvent event)
-	{
+	public void onIMCMessage(FMLInterModComms.IMCEvent event) {
 		for (FMLInterModComms.IMCMessage msg : event.getMessages())
-		{
 			IMCHandler.handleIMC(msg);
-		}
 	}
 
 	@EventHandler
 	public void remap(FMLMissingMappingsEvent event) {
-		for (FMLMissingMappingsEvent.MissingMapping mapping : event.get())
-		{
-			try
-			{
-				String subName = mapping.name.split(":")[1];
-				if (mapping.type == GameRegistry.Type.ITEM)
-				{
-					Item remappedItem = GameRegistry.findItem(PECore.MODID, "item.pe_" + subName.substring(5)); // strip "item." off of subName
-					if (remappedItem != null)
-					{
-						// legacy remap (adding pe_ prefix)
-						mapping.remap(remappedItem);
-					}
-					else
-					{
-						// Space strip remap - ItemBlocks
-						String newSubName = Constants.SPACE_STRIP_NAME_MAP.get(subName);
-						remappedItem = GameRegistry.findItem(PECore.MODID, newSubName);
-
-						if (remappedItem != null)
-						{
-							mapping.remap(remappedItem);
-							PELogger.logInfo(String.format("Remapped ProjectE ItemBlock from %s to %s", mapping.name, PECore.MODID + ":" + newSubName));
-						}
-						else
-						{
-							PELogger.logFatal("Failed to remap ProjectE ItemBlock: " + mapping.name);
-						}
-					}
-				}
-				if (mapping.type == GameRegistry.Type.BLOCK) {
-					// Space strip remap - Blocks
+		for (FMLMissingMappingsEvent.MissingMapping mapping : event.get()) {
+			String subName = mapping.name.split(":")[1];
+			if (mapping.type == GameRegistry.Type.ITEM) {
+				// strip "item." off of subName
+				Item remappedItem = GameRegistry.findItem(PECore.MODID, "item.pe_" + subName.substring(5));
+				if (remappedItem != null)
+					mapping.remap(remappedItem); // legacy remap (adding pe_ prefix)
+				else {
+					// Space strip remap - ItemBlocks
 					String newSubName = Constants.SPACE_STRIP_NAME_MAP.get(subName);
-					Block remappedBlock = GameRegistry.findBlock(PECore.MODID, newSubName);
-
-					if (remappedBlock != null) {
-						mapping.remap(remappedBlock);
-						PELogger.logInfo(String.format("Remapped ProjectE Block from %s to %s", mapping.name, PECore.MODID + ":" + newSubName));
+					remappedItem = GameRegistry.findItem(PECore.MODID, newSubName);
+					if (remappedItem != null) {
+						mapping.remap(remappedItem);
+						PELogger.logInfo(String.format("Remapped ProjectE ItemBlock from %s to %s", mapping.name, PECore.MODID + ":" + newSubName));
 					}
-					else {
-						PELogger.logFatal("Failed to remap PE Block: " + mapping.name);
-					}
+					else PELogger.logError("Failed to remap ProjectE ItemBlock: " + mapping.name);
 				}
-			} catch (Throwable t)
-			{
-				// Should never happen
-				throw Throwables.propagate(t);
+			}
+			else if (mapping.type == GameRegistry.Type.BLOCK) {
+				// Space strip remap - Blocks
+				String newSubName = Constants.SPACE_STRIP_NAME_MAP.get(subName);
+				Block remappedBlock = GameRegistry.findBlock(PECore.MODID, newSubName);
+				if (remappedBlock != null) {
+					mapping.remap(remappedBlock);
+					PELogger.logInfo(String.format("Remapped ProjectE Block from %s to %s", mapping.name, PECore.MODID + ":" + newSubName));
+				}
+				else PELogger.logError("Failed to remap PE Block: " + mapping.name);
 			}
 		}
 	}
