@@ -110,7 +110,6 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 
 		if (world.isRemote || stack.getItemDamage() == 0) return;
 
-		EntityPlayer player = (EntityPlayer) entity;
 		double reqEmc = getEmcPerTick(this.getCharge(stack));
 
 		if (!consumeFuel(player, stack, reqEmc, true)) return;
