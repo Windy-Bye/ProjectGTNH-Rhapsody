@@ -74,6 +74,7 @@ item.pe_void_ring.name=虚空指环
 item.pe_zero_ring.name=零度指环
 item.pe_tome.name=炼金术秘卷
 item.pe_transmutation_tablet.name=便携式转化桌
+item.pe_arcane_transmutation_tablet.name=奥术转化桌
 item.pe_manual.name=炼金术士之书[WIP]
 
 pe.manual.tooltip1=卷二

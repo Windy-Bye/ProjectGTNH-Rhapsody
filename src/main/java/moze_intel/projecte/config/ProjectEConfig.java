@@ -89,7 +89,7 @@ public final class ProjectEConfig {
 			sciFormat = config.getString("sciFormat", "misc", "e", "The string used as a separator for scientific notation in tooltips");
 
 			enableTimeWatch = config.getBoolean("enableTimeWatch", "items", true, "Enable Watch of Flowing Time");
-			enableArcaneTablet = config.getBoolean("enableArcaneTablet", "items", false, "Enable Arcane Transmutation Tablet");
+			enableArcaneTablet = config.getBoolean("enableArcaneTablet", "items", true, "Enable Arcane Transmutation Tablet");
 
 			ignitionRingIgniteBlocks = config.getBoolean("ignitionRingIgniteBlocks", "items", false, "If true, the Ignition Ring will passively ignite surrounding blocks.");
 			zeroRingPlaceSnow = config.getBoolean("zeroRingPlaceSnow", "items", false, "If true, the Zero Ring will passively freeze water and place snow around the player.");
