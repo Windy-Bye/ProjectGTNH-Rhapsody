@@ -20,6 +20,7 @@ public final class ProjectEConfig {
 
 	public static boolean enableTimeWatch;
 	public static boolean enableArcaneTablet;
+	public static boolean enableExpansionStar;
 
 	public static boolean craftableTome;
 	public static boolean altCraftingMat;
@@ -90,6 +91,7 @@ public final class ProjectEConfig {
 
 			enableTimeWatch = config.getBoolean("enableTimeWatch", "items", true, "Enable Watch of Flowing Time");
 			enableArcaneTablet = config.getBoolean("enableArcaneTablet", "items", true, "Enable Arcane Transmutation Tablet");
+			enableExpansionStar = config.getBoolean("enableExpansionStar", "items", false, "Enable Stars Reported from Project Expansion");
 
 			ignitionRingIgniteBlocks = config.getBoolean("ignitionRingIgniteBlocks", "items", false, "If true, the Ignition Ring will passively ignite surrounding blocks.");
 			zeroRingPlaceSnow = config.getBoolean("zeroRingPlaceSnow", "items", false, "If true, the Zero Ring will passively freeze water and place snow around the player.");

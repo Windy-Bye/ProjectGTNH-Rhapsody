@@ -33,6 +33,7 @@ import moze_intel.projecte.gameObjs.entity.EntitySWRGProjectile;
 import moze_intel.projecte.gameObjs.entity.EntityWaterProjectile;
 import moze_intel.projecte.gameObjs.items.AlchemicalBag;
 import moze_intel.projecte.gameObjs.items.AlchemicalFuel;
+import moze_intel.projecte.gameObjs.items.ArcaneTransmutationTablet;
 import moze_intel.projecte.gameObjs.items.CataliticLens;
 import moze_intel.projecte.gameObjs.items.CovalenceDust;
 import moze_intel.projecte.gameObjs.items.DestructionCatalyst;
@@ -42,7 +43,7 @@ import moze_intel.projecte.gameObjs.items.DiviningRodMedium;
 import moze_intel.projecte.gameObjs.items.EvertideAmulet;
 import moze_intel.projecte.gameObjs.items.GemEternalDensity;
 import moze_intel.projecte.gameObjs.items.HyperkineticLens;
-import moze_intel.projecte.gameObjs.items.ArcaneTransmutationTablet;
+import moze_intel.projecte.gameObjs.items.ItemExpansionStar;
 import moze_intel.projecte.gameObjs.items.KleinStar;
 import moze_intel.projecte.gameObjs.items.Matter;
 import moze_intel.projecte.gameObjs.items.MercurialEye;
@@ -167,6 +168,10 @@ public class ObjHandler
 	public static Item alchBag = new AlchemicalBag();
 	public static Item repairTalisman = new RepairTalisman();
 	public static Item kleinStars = new KleinStar();
+	public static Item magnumStar;
+	public static Item gargantuanStar;
+	public static Item colossalStar;
+
 	public static Item fuels = new AlchemicalFuel();
 	public static Item covalence = new CovalenceDust();
 	public static Item matter = new Matter();
@@ -275,6 +280,28 @@ public class ObjHandler
 		GameRegistry.registerItem(alchBag, alchBag.getUnlocalizedName());
 		GameRegistry.registerItem(repairTalisman, repairTalisman.getUnlocalizedName());
 		GameRegistry.registerItem(kleinStars, kleinStars.getUnlocalizedName());
+
+		double kleinTier6Max = 5.12e7;
+
+		if (ProjectEConfig.enableExpansionStar) {
+			// 1级马格南 = 4 * 6级卡莱恩
+			double magnumT1Max = kleinTier6Max * 4;
+			magnumStar = new ItemExpansionStar("magnum_star", 4, magnumT1Max);
+			GameRegistry.registerItem(magnumStar, magnumStar.getUnlocalizedName());
+
+			// 1级葛甘图 = 9 * 6级马格南 (6级马格南容量 = magnumT1Max * 9^5)
+			double magnumT6Max = magnumT1Max * Math.pow(4, 5);
+			double gargantuanT1Max = magnumT6Max * 9;
+			gargantuanStar = new ItemExpansionStar("gargantuan_star", 9, gargantuanT1Max);
+			GameRegistry.registerItem(gargantuanStar, gargantuanStar.getUnlocalizedName());
+
+			// 1级终焉 = 9 * 6级葛甘图 (6级葛甘图容量 = gargantuanT1Max * 9^5)
+			double gargantuanT6Max = gargantuanT1Max * Math.pow(9, 5);
+			double colossalT1Max = gargantuanT6Max * 9;
+			colossalStar = new ItemExpansionStar("colossal_star", 9, colossalT1Max);
+			GameRegistry.registerItem(colossalStar, colossalStar.getUnlocalizedName());
+		}
+
 		GameRegistry.registerItem(fuels, fuels.getUnlocalizedName());
 		GameRegistry.registerItem(covalence, covalence.getUnlocalizedName());
 		GameRegistry.registerItem(matter, matter.getUnlocalizedName());
