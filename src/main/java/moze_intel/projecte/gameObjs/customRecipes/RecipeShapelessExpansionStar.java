@@ -1,31 +1,20 @@
 package moze_intel.projecte.gameObjs.customRecipes;
 
 import cpw.mods.fml.common.registry.GameRegistry;
+import moze_intel.projecte.api.item.IItemEmc;
+import moze_intel.projecte.gameObjs.ObjHandler;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.ShapelessRecipes;
-import net.minecraft.world.World;
-import moze_intel.projecte.api.item.IItemEmc;
-import moze_intel.projecte.gameObjs.ObjHandler;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class RecipeShapelessExpansionStar extends ShapelessRecipes
 {
-	public RecipeShapelessExpansionStar(ItemStack output, List inputs)
+	public RecipeShapelessExpansionStar(ItemStack output, List<ItemStack> inputs)
 	{
 		super(output, inputs);
-	}
-
-	/**
-	 * 用于检查合成网格中的物品是否匹配当前配方
-	 */
-	@Override
-	public boolean matches(InventoryCrafting inv, World world)
-	{
-		// 直接使用原版 ShapelessRecipes 提供的无序匹配逻辑，这样最稳定
-		return super.matches(inv, world);
 	}
 
 	/**
