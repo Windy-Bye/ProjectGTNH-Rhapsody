@@ -1,11 +1,9 @@
 package moze_intel.projecte.utils;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.StatCollector;
 import moze_intel.projecte.emc.EMCMapper;
 import moze_intel.projecte.emc.SimpleStack;
-import moze_intel.projecte.manual.AbstractPage;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 
 import java.util.Comparator;
 
@@ -37,5 +35,5 @@ public final class Comparators {
         return emc1.compareTo(emc2);
     };
 
-	public static final Comparator<AbstractPage> PAGE_HEADER = (o1, o2) -> StatCollector.translateToLocal(o1.getHeaderText()).compareToIgnoreCase(StatCollector.translateToLocal(o2.getHeaderText()));
+//	public static final Comparator<AbstractPage> PAGE_HEADER = (o1, o2) -> StatCollector.translateToLocal(o1.getHeaderText()).compareToIgnoreCase(StatCollector.translateToLocal(o2.getHeaderText()));
 }
