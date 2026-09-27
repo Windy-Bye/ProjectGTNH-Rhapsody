@@ -12,6 +12,8 @@ import moze_intel.projecte.utils.ItemSearchHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTBase;
+import net.minecraft.nbt.NBTTagCompound;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,7 +78,22 @@ public class TransmutationInventory implements IInventory {
 		}
 
 		// 白名单过滤逻辑：只保留配置文件中允许的 NBT 键
-		stack.stackTagCompound = ItemHelper.filterNBT(stack);
+		// 以及 ench, StoredEnchantments, RepairCost, display
+		NBTTagCompound res = ItemHelper.filterNBT(stack);
+		if (res == null)
+			res = new NBTTagCompound();
+
+		NBTBase tag;
+		if ((tag = stack.stackTagCompound.getTag("ench")) != null)
+			res.setTag("ench", tag.copy());
+		if ((tag = stack.stackTagCompound.getTag("StoredEnchantments")) != null)
+			res.setTag("StoredEnchantments", tag.copy());
+		if ((tag = stack.stackTagCompound.getTag("RepairCost")) != null)
+			res.setTag("RepairCost", tag.copy());
+		if ((tag = stack.stackTagCompound.getTag("display")) != null)
+			res.setTag("display", tag.copy());
+
+		stack.stackTagCompound = res.hasNoTags() ? null : res;
 	}
 
 	public void handleUnlearn(ItemStack stack) {
