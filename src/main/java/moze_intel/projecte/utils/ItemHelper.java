@@ -9,6 +9,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.oredict.OreDictionary;
@@ -135,14 +136,13 @@ public final class ItemHelper {
 		NBTTagCompound result = new NBTTagCompound();
 
 		// 白名单 NBT
-		String itemName = Item.itemRegistry.getNameForObject(stack.getItem());
 		// 使用一次 get 替代 containsKey + get 避免双重哈希查找
-		List<String> nbtList = ProjectEConfig.nbtDistinctlist.get(itemName);
+		List<String> nbtList = ProjectEConfig.nbtDistinctlist.get(stack.getItem());
 		if (nbtList != null) {
 			for (String key : nbtList) {
-				if (original.hasKey(key)) {
-					result.setTag(key, original.getTag(key).copy());
-				}
+				NBTBase tag = original.getTag(key);
+				if (tag != null)
+					result.setTag(key, tag.copy());
 			}
 		}
 
@@ -151,22 +151,19 @@ public final class ItemHelper {
 			NBTTagCompound toolStats = original.getCompoundTag("GT.ToolStats");
 			NBTTagCompound newStats = new NBTTagCompound();
 
+			NBTBase tag;
 			// 主材料与副材料
-			if (toolStats.hasKey("PrimaryMaterial")) {
-				newStats.setTag("PrimaryMaterial", toolStats.getTag("PrimaryMaterial").copy());
-			}
-			if (toolStats.hasKey("SecondaryMaterial")) {
-				newStats.setTag("SecondaryMaterial", toolStats.getTag("SecondaryMaterial").copy());
-			}
+			if ((tag = toolStats.getTag("PrimaryMaterial")) != null)
+				newStats.setTag("PrimaryMaterial", tag.copy());
+			if ((tag = toolStats.getTag("SecondaryMaterial")) != null)
+				newStats.setTag("SecondaryMaterial", tag.copy());
 
 			// MaxDamage
-			if (toolStats.hasKey("MaxDamage")) {
-				newStats.setTag("MaxDamage", toolStats.getTag("MaxDamage").copy());
-			}
+			if ((tag = toolStats.getTag("MaxDamage")) != null)
+				newStats.setTag("MaxDamage", tag.copy());
 
-			if (!newStats.hasNoTags()) {
+			if (!newStats.hasNoTags())
 				result.setTag("GT.ToolStats", newStats);
-			}
 		}
 
 		return result.hasNoTags() ? null : result;
