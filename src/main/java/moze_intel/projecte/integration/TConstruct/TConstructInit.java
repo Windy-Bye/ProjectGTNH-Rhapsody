@@ -28,8 +28,8 @@ public class TConstructInit {
 
 		// 注册匠魂材料
 		// 参数: ID, 内部名, 本地化名, 挖掘等级, 耐久, 挖掘速度, 攻击力, 手柄系数, 强化槽(reinforced), 碎石系数(stonebound), 样式, 颜色
-		TConstructRegistry.addToolMaterial(MAT_ID_DARK_MATTER, "DarkMatter", "material.darkmatter", 7, 102400, 1500, 20, 2.5f, 2, 0f, "", 0x2E004F);
-		TConstructRegistry.addToolMaterial(MAT_ID_RED_MATTER, "RedMatter", "material.redmatter", 10, 104857600, 2000, 23, 32.0f, 3, 0f, "", 0x990000);
+		TConstructRegistry.addToolMaterial(MAT_ID_DARK_MATTER, "DarkMatter", "item.pe_matter_dark.name", 7, 102400, 1500, 20, 2.5f, 2, 0f, "", 0x2E004F);
+		TConstructRegistry.addToolMaterial(MAT_ID_RED_MATTER, "RedMatter", "item.pe_matter_red.name", 10, 104857600, 2000, 23, 32.0f, 3, 0f, "", 0x990000);
 
 		// 弓
 		TConstructRegistry.addBowMaterial(MAT_ID_DARK_MATTER, 5, 2.0f);
