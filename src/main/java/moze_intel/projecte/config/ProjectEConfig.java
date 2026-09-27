@@ -133,7 +133,8 @@ public final class ProjectEConfig {
 
 			nbtWhitelistConfig = config.getStringList("nbtWhitelist", "nbt", new String[]{
 				"Botania:specialFlower|type",
-				"Botania:specialFlower|color"
+				"Botania:specialFlower|color",
+				"etfuturum:shulker_box|color"
 			}, "Format: modid:itemname|nbt_key. These NBT tags will be preserved and act as distinct items in the transmutation table.");
 
 			dynamicEmcNbtConfig = config.getStringList("dynamicEmcNbt", "nbt", new String[]{
