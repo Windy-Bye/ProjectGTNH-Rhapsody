@@ -14,7 +14,6 @@ import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
@@ -72,11 +71,9 @@ public class RedStar extends PEToolBase
 		setHarvestLevel(pePrimaryToolClass, 4);
 	}
 
-	private void ensureFortune(ItemStack stack)
-	{
-		if (EnchantmentHelper.getEnchantmentLevel(Enchantment.fortune.effectId, stack) < 3) {
+	private void ensureFortune(ItemStack stack) {
+		if (EnchantmentHelper.getEnchantmentLevel(Enchantment.fortune.effectId, stack) < 3)
 			stack.addEnchantment(Enchantment.fortune, 3);
-		}
 	}
 
 	@Override
@@ -87,25 +84,14 @@ public class RedStar extends PEToolBase
 	}
 
 	@Override
-	public void onCreated(ItemStack stack, World world, EntityPlayer player)
-	{
+	public void onCreated(ItemStack stack, World world, EntityPlayer player) {
 		super.onCreated(stack, world, player);
 		ensureFortune(stack);
 	}
 
 	@Override
-	public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld)
-	{
-		super.onUpdate(stack, world, entity, slot, isHeld);
-		if (!world.isRemote && entity.ticksExisted % 20 == 0) {
-			ensureFortune(stack);
-		}
-	}
-
-	@Override
 	public boolean hitEntity(ItemStack stack, EntityLivingBase damaged, EntityLivingBase damager)
 	{
-		ensureFortune(stack); // 操作时兜底
 		if (!damager.worldObj.isRemote) {
 			damaged.hurtResistantTime = 0; // 清除无敌帧
 			attackWithCharge(stack, damaged, damager, STAR_BASE_ATTACK);
@@ -116,7 +102,6 @@ public class RedStar extends PEToolBase
 	@Override
 	public boolean onBlockStartBreak(ItemStack stack, int x, int y, int z, EntityPlayer player)
 	{
-		ensureFortune(stack);
 		if (player.worldObj.isRemote && getMode(stack) == 4) {
 			if (stack.stackTagCompound == null)
 				stack.stackTagCompound = new NBTTagCompound();
@@ -132,7 +117,6 @@ public class RedStar extends PEToolBase
 	@Override
 	public boolean onBlockDestroyed(ItemStack stack, World world, Block block, int x, int y, int z, EntityLivingBase eLiving)
 	{
-		ensureFortune(stack);
 		if (getMode(stack) != 4)
 			digBasedOnMode(stack, world, block, x, y, z, eLiving);
 		return true;
@@ -141,7 +125,6 @@ public class RedStar extends PEToolBase
 	@Override
 	public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player)
 	{
-		ensureFortune(stack);
 		if (world.isRemote || getMode(stack) == 4) return stack;
 
 		if (ProjectEConfig.pickaxeAoeVeinMining)
