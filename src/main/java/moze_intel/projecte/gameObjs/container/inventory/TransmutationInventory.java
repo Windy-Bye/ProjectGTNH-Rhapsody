@@ -39,7 +39,7 @@ public class TransmutationInventory implements IInventory {
 	private List<ItemStack> filteredMatter = new ArrayList<>();
 	private List<ItemStack> filteredFuel = new ArrayList<>();
 	private String lastFilter = null;
-	private boolean knowledgeDirty = true;
+	private boolean knowledgeDirty = true; // 知识库缓存标记
 
 	public TransmutationInventory(EntityPlayer player)
 	{
@@ -64,10 +64,13 @@ public class TransmutationInventory implements IInventory {
 			if (is.getItem() == ObjHandler.tome) {
 				Transmutation.setFullKnowledge(player);
 				if (!player.worldObj.isRemote)
-					Transmutation.sync(player);
+					Transmutation.sync(player); // 只有在吃转化书这种全量修改时才发送完整包
 			}
 			else {
 				Transmutation.addKnowledge(is, player);
+				/*if (!player.worldObj.isRemote) {
+					Transmutation.syncIncremental(player, is, false); // 发送增量更新
+				}*/
 			}
 		}
 
@@ -81,8 +84,11 @@ public class TransmutationInventory implements IInventory {
 			return;
 		}
 
-		if (stack.stackTagCompound == null) return;
+		if (stack.stackTagCompound == null || stack.stackTagCompound.hasNoTags())
+			return;
 
+		// 白名单过滤逻辑：只保留配置文件中允许的 NBT 键
+		// 以及 ench, StoredEnchantments, RepairCost, display
 		NBTTagCompound res = ItemHelper.filterNBT(stack);
 		if (res == null)
 			res = new NBTTagCompound();
@@ -117,6 +123,9 @@ public class TransmutationInventory implements IInventory {
 			knowledgeDirty = true;
 
 			Transmutation.removeKnowledge(is, player);
+			/*if (!player.worldObj.isRemote) {
+				Transmutation.syncIncremental(player, is, true); // 发送增量更新
+			}*/
 		}
 
 		updateOutputs();
@@ -322,6 +331,7 @@ public class TransmutationInventory implements IInventory {
 	public void closeInventory() {
 		Transmutation.setEmc(player, emc);
 		Transmutation.setInputsAndLocks(Arrays.copyOfRange(inventory, 0, 9), player);
+		//Transmutation.sync(player);
 	}
 
 	@Override

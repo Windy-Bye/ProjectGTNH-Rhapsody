@@ -76,6 +76,7 @@ public final class ItemHelper {
 	public static boolean basicAreStacksEqual(ItemStack stack1, ItemStack stack2) {
 		if (stack1 == stack2) return true;
 		if (stack1 == null || stack2 == null) return false;
+		// Item 在 MC 中是单例，直接使用 == 比较地址更快
 		return (stack1.getItem() == stack2.getItem()) && (stack1.getItemDamage() == stack2.getItemDamage());
 	}
 
@@ -132,72 +133,87 @@ public final class ItemHelper {
 	}
 
 	public static boolean containsItemStack(List<ItemStack> list, ItemStack toSearch) {
-		if (toSearch == null || toSearch.getItem() == null) return false;
-		Item searchItem = toSearch.getItem();
-		int searchDamage = toSearch.getItemDamage();
+		Item itemToSearch;
+		if (toSearch == null || (itemToSearch = toSearch.getItem()) == null) return false;
 		boolean hasSubtypes = toSearch.getHasSubtypes();
-
-		for (ItemStack stack : list) {
-			if (stack == null || stack.getItem() == null) continue;
-			if (stack.getItem() == searchItem) {
-				if (!hasSubtypes || stack.getItemDamage() == searchDamage) {
-					return true;
-				}
-			}
+		int damage = toSearch.getItemDamage();
+		for (int i = 0, size = list.size(); i < size; i++) {
+			ItemStack stack = list.get(i);
+			Item item;
+			if (stack == null || (item = stack.getItem()) == null) continue;
+			// 优化
+			if (item == itemToSearch && (!hasSubtypes || stack.getItemDamage() == damage))
+				return true;
 		}
 		return false;
 	}
 
 	public static boolean containsItemStack(ItemStack[] stacks, ItemStack toSearch) {
-		if (toSearch == null || toSearch.getItem() == null) return false;
-		Item searchItem = toSearch.getItem();
-		int searchDamage = toSearch.getItemDamage();
+		Item itemToSearch;
+		if (toSearch == null || (itemToSearch = toSearch.getItem()) == null) return false;
 		boolean hasSubtypes = toSearch.getHasSubtypes();
-
-		for (ItemStack stack : stacks) {
-			if (stack == null || stack.getItem() == null) continue;
-			if (stack.getItem() == searchItem) {
-				if (!hasSubtypes || stack.getItemDamage() == searchDamage) {
-					return true;
-				}
-			}
+		int damage = toSearch.getItemDamage();
+		for (int i = 0, stacksLength = stacks.length; i < stacksLength; i++) {
+			ItemStack stack = stacks[i];
+			Item item;
+			if (stack == null || (item = stack.getItem()) == null) continue;
+			// 优化
+			if (item == itemToSearch && (!hasSubtypes || stack.getItemDamage() == damage))
+				return true;
 		}
 		return false;
 	}
 
+	/**
+	 * Copy an NBTTagList that has inventory indices into the appropriate positions of provided array.
+	 */
 	public static ItemStack[] copyIndexedNBTToArray(NBTTagList list, ItemStack[] dest) {
-		for (int i = 0; i < list.tagCount(); i++) {
+		for (int i = 0, tagCount = list.tagCount(); i < tagCount; i++) {
 			NBTTagCompound entry = list.getCompoundTagAt(i);
 			dest[entry.getByte("index")] = ItemStack.loadItemStackFromNBT(entry);
 		}
 		return dest;
 	}
 
+	/**
+	 * Filter nbt tags that truly differ items.
+	 *
+	 * @param stack The ItemStack needs to filter nbt for
+	 * @return filtered nbt from stack.stackTagCompound
+	 */
 	public static NBTTagCompound filterNBT(ItemStack stack) {
 		if (stack == null || stack.getItem() == null) return null;
-		NBTTagCompound original = stack.stackTagCompound;
+		NBTTagCompound original = stack.stackTagCompound; // 优化
 		if (original == null || original.hasNoTags()) return null;
 
 		NBTTagCompound result = new NBTTagCompound();
 
+		// 白名单 NBT
+		// 使用一次 get 替代 containsKey + get 避免双重哈希查找
 		List<String> nbtList = ProjectEConfig.nbtDistinctlist.get(stack.getItem());
 		if (nbtList != null) {
-			for (String key : nbtList) {
+			for (int i = 0, size = nbtList.size(); i < size; i++) {
+				String key = nbtList.get(i);
 				NBTBase tag = original.getTag(key);
 				if (tag != null)
 					result.setTag(key, tag.copy());
 			}
 		}
 
-		if (GTItemHelper.isGTtool(stack) && original.hasKey("GT.ToolStats")) {
+		// 整合 GT 工具核心 NBT
+		// 先判断 hasKey 快速失败，避免不必要的 isGTtool 检查
+		if (original.hasKey("GT.ToolStats") && GTItemHelper.isGTtool(stack)) {
 			NBTTagCompound toolStats = original.getCompoundTag("GT.ToolStats");
 			NBTTagCompound newStats = new NBTTagCompound();
 
 			NBTBase tag;
+			// 主材料与副材料
 			if ((tag = toolStats.getTag("PrimaryMaterial")) != null)
 				newStats.setTag("PrimaryMaterial", tag.copy());
 			if ((tag = toolStats.getTag("SecondaryMaterial")) != null)
 				newStats.setTag("SecondaryMaterial", tag.copy());
+
+			// MaxDamage
 			if ((tag = toolStats.getTag("MaxDamage")) != null)
 				newStats.setTag("MaxDamage", tag.copy());
 
@@ -208,12 +224,19 @@ public final class ItemHelper {
 		return result.hasNoTags() ? null : result;
 	}
 
+	/**
+	 * Returns an ItemStack with stacksize = 1.
+	 */
 	public static ItemStack getNormalizedStack(ItemStack stack) {
 		ItemStack result = stack.copy();
 		result.stackSize = 1;
 		return result;
 	}
 
+	/**
+	 * Get a List of itemstacks from an OD name.<br>
+	 * It also makes sure that no items with damage 32767 are included, to prevent errors.
+	 */
 	public static List<ItemStack> getODItems(String oreName) {
 		List<ItemStack> result = new ArrayList<>();
 
@@ -264,7 +287,7 @@ public final class ItemHelper {
 	}
 
 	public static ItemStack getStackFromInv(IInventory inv, ItemStack stack) {
-		for (int i = 0; i < inv.getSizeInventory(); i++) {
+		for (int i = 0, size = inv.getSizeInventory(); i < size; i++) {
 			ItemStack s = inv.getStackInSlot(i);
 			if (s != null && basicAreStacksEqual(stack, s)) {
 				return s;
@@ -288,27 +311,37 @@ public final class ItemHelper {
 		return new ItemStack(item, 1, metaData);
 	}
 
+	/**
+	 * Ignore stack size.
+	 * @return space in the inv for the stack
+	 */
 	public static int getSpaceFor(IInventory inv, ItemStack stack) {
 		int stackable = 0;
 		final int maxStack = stack.getMaxStackSize();
-		for (int i = 0; i < inv.getSizeInventory(); i++) {
+		for (int i = 0, size = inv.getSizeInventory(); i < size; i++) {
 			ItemStack invStack = inv.getStackInSlot(i);
+			// 原逻辑空槽固定 +64，如果是不可堆叠物品可能会导致超量吞件（可能吗？）
 			if (invStack == null) {
 				stackable += maxStack;
-			} else if (areItemStacksEqual(stack, invStack) && invStack.stackSize < maxStack) {
+			} else if (invStack.stackSize < maxStack && areItemStacksEqual(stack, invStack)) {
 				stackable += maxStack - invStack.stackSize;
 			}
 		}
 		return stackable;
 	}
 
+	/**
+	 * Ignore stack size.
+	 * @return space in the inv for the stack
+	 */
 	public static int getSpaceFor(ItemStack[] inv, ItemStack stack) {
 		int stackable = 0;
 		final int maxStack = stack.getMaxStackSize();
 		for (ItemStack invStack : inv) {
+			// 修复 Bug: 同上
 			if (invStack == null) {
 				stackable += maxStack;
-			} else if (areItemStacksEqual(stack, invStack) && invStack.stackSize < maxStack) {
+			} else if (invStack.stackSize < maxStack && areItemStacksEqual(stack, invStack)) {
 				stackable += maxStack - invStack.stackSize;
 			}
 		}
@@ -325,21 +358,29 @@ public final class ItemHelper {
 		return hasSpaceForSingle(inv, stack);
 	}
 
+	/**
+	 * Ignore stack size.
+	 * @return does inv have space for one item in stack
+	 */
 	public static boolean hasSpaceForSingle(IInventory inv, ItemStack stack) {
-		for (int i = 0; i < inv.getSizeInventory(); i++) {
+		for (int i = 0, size = inv.getSizeInventory(); i < size; i++) {
 			ItemStack invStack = inv.getStackInSlot(i);
 			if (invStack == null) return true;
-			if (areItemStacksEqual(stack, invStack) && invStack.stackSize < invStack.getMaxStackSize()) {
+			if (invStack.stackSize < invStack.getMaxStackSize() && areItemStacksEqual(stack, invStack)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+	/**
+	 * Ignore stack size.
+	 * @return does inv have space for one item in stack
+	 */
 	public static boolean hasSpaceForSingle(ItemStack[] inv, ItemStack stack) {
 		for (ItemStack invStack : inv) {
 			if (invStack == null) return true;
-			if (areItemStacksEqual(stack, invStack) && invStack.stackSize < invStack.getMaxStackSize()) {
+			if (invStack.stackSize < invStack.getMaxStackSize() && areItemStacksEqual(stack, invStack)) {
 				return true;
 			}
 		}
@@ -347,7 +388,7 @@ public final class ItemHelper {
 	}
 
 	public static boolean invContainsItem(IInventory inv, ItemStack toSearch) {
-		for (int i = 0; i < inv.getSizeInventory(); i++) {
+		for (int i = 0, size = inv.getSizeInventory(); i < size; i++) {
 			ItemStack stack = inv.getStackInSlot(i);
 			if (stack != null && basicAreStacksEqual(stack, toSearch)) return true;
 		}
@@ -363,7 +404,7 @@ public final class ItemHelper {
 
 	public static boolean invContainsItem(ItemStack[] inv, Item toSearch) {
 		for (ItemStack stack : inv) {
-			if (stack != null && stack.getItem() == toSearch) return true;
+			if (stack != null && stack.getItem() == toSearch) return true; // 优化
 		}
 		return false;
 	}
@@ -389,7 +430,7 @@ public final class ItemHelper {
 
 	public static ItemStack[] nbtToArray(NBTTagList list) {
 		ItemStack[] stacks = new ItemStack[list.tagCount()];
-		for (int i = 0; i < list.tagCount(); i++) {
+		for (int i = 0, tagCount = list.tagCount(); i < tagCount; i++) {
 			stacks[i] = ItemStack.loadItemStackFromNBT(list.getCompoundTagAt(i));
 		}
 		return stacks;
@@ -406,6 +447,9 @@ public final class ItemHelper {
 		ball.setItemList(results);
 	}
 
+	/**
+	 * Returns an itemstack if the stack passed could not entirely fit in the inventory, otherwise returns null.
+	 */
 	public static ItemStack pushStackInInv(IInventory inv, ItemStack stack) {
 		int limit = (inv instanceof InventoryPlayer) ? ((InventoryPlayer) inv).mainInventory.length : inv.getSizeInventory();
 
@@ -413,6 +457,7 @@ public final class ItemHelper {
 			ItemStack invStack = inv.getStackInSlot(i);
 
 			if (invStack == null) {
+				// 原版空槽塞入缺乏槽位类型验证，如果这是只能塞入特定物品的机器槽可能会出问题（？）
 				if (inv.isItemValidForSlot(i, stack)) {
 					inv.setInventorySlotContents(i, stack);
 					return null;
@@ -420,8 +465,8 @@ public final class ItemHelper {
 				continue;
 			}
 
-			if (inv.isItemValidForSlot(i, stack) && areItemStacksEqual(stack, invStack)
-				&& invStack.stackSize < invStack.getMaxStackSize())
+			if (invStack.stackSize < invStack.getMaxStackSize() && inv.isItemValidForSlot(i, stack)
+				&& areItemStacksEqual(stack, invStack))
 			{
 				int remaining = invStack.getMaxStackSize() - invStack.stackSize;
 
@@ -440,6 +485,9 @@ public final class ItemHelper {
 		return stack.copy();
 	}
 
+	/**
+	 * Returns an itemstack if the stack passed could not entirely fit in the inventory, otherwise returns null.
+	 */
 	public static ItemStack pushStackInInv(ItemStack[] inv, ItemStack stack) {
 		for (int i = 0; i < inv.length; i++) {
 			ItemStack invStack = inv[i];
@@ -449,7 +497,7 @@ public final class ItemHelper {
 				return null;
 			}
 
-			if (areItemStacksEqual(stack, invStack) && invStack.stackSize < invStack.getMaxStackSize()) {
+			if (invStack.stackSize < invStack.getMaxStackSize() && areItemStacksEqual(stack, invStack)) {
 				int remaining = invStack.getMaxStackSize() - invStack.stackSize;
 
 				if (remaining >= stack.stackSize) {
@@ -467,6 +515,9 @@ public final class ItemHelper {
 		return stack.copy();
 	}
 
+	/**
+	 * Takes an array of ItemStacks and turns it into an NBTTaglist.
+	 */
 	public static NBTTagList toIndexedNBTList(ItemStack[] stacks) {
 		NBTTagList list = new NBTTagList();
 		for (int i = 0; i < stacks.length; i++) {
@@ -481,6 +532,6 @@ public final class ItemHelper {
 	}
 
 	public static void trimItemList(List<ItemStack> list) {
-		list.removeIf(s -> s == null || s.stackSize <= 0);
+		list.removeIf(s -> s == null || s.stackSize <= 0); // 加入非空校验
 	}
 }
