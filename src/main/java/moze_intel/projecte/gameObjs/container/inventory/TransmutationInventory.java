@@ -78,14 +78,12 @@ public class TransmutationInventory implements IInventory {
 	}
 
 	public static void processNBTTags(ItemStack stack) {
-		if (stack == null) return;
-		if (!EMCMapper.enableNBTprocess) {
+		if (stack == null || stack.stackTagCompound == null) return;
+
+		if (!EMCMapper.enableNBTprocess || stack.stackTagCompound.hasNoTags()) {
 			stack.stackTagCompound = null;
 			return;
 		}
-
-		if (stack.stackTagCompound == null || stack.stackTagCompound.hasNoTags())
-			return;
 
 		// 白名单过滤逻辑：只保留配置文件中允许的 NBT 键
 		// 以及 ench, StoredEnchantments, RepairCost, display
@@ -155,7 +153,8 @@ public class TransmutationInventory implements IInventory {
 		if (filter.isEmpty()) {
 			filteredMatter = cachedMatter;
 			filteredFuel = cachedFuel;
-		} else {
+		}
+		else {
 			ItemSearchHelper searchHelper = ItemSearchHelper.create(filter);
 
 			// 如果新搜索词是以旧词开头的，就在上次过滤的结果上继续搜
@@ -163,14 +162,14 @@ public class TransmutationInventory implements IInventory {
 			List<ItemStack> sourceFuel = (lastFilter != null && filter.startsWith(lastFilter)) ? filteredFuel : cachedFuel;
 
 			filteredMatter = new ArrayList<>();
-			for (ItemStack s : sourceMatter) {
-				if (searchHelper.doesItemMatchFilter(s)) filteredMatter.add(s);
-			}
+			for (ItemStack s : sourceMatter)
+				if (searchHelper.doesItemMatchFilter(s))
+					filteredMatter.add(s);
 
 			filteredFuel = new ArrayList<>();
-			for (ItemStack s : sourceFuel) {
-				if (searchHelper.doesItemMatchFilter(s)) filteredFuel.add(s);
-			}
+			for (ItemStack s : sourceFuel)
+				if (searchHelper.doesItemMatchFilter(s))
+					filteredFuel.add(s);
 		}
 		lastFilter = filter;
 	}
@@ -185,9 +184,8 @@ public class TransmutationInventory implements IInventory {
 			if (midEmc <= targetEmc) {
 				ans = mid;
 				right = mid - 1; // 尝试寻找更靠左的（同 EMC 的前置项）
-			} else {
-				left = mid + 1; // 当前项 EMC 太大，往右找更小的
 			}
+			else left = mid + 1; // 当前项 EMC 太大，往右找更小的
 		}
 		return ans;
 	}
@@ -198,9 +196,8 @@ public class TransmutationInventory implements IInventory {
 
 		int filled = 0;
 		// 结合 startIndex 与 分页 skipCount 实现偏移直接定位目标页面的物品
-		for (int i = startIndex + skipCount; i < sourceList.size() && filled < slots.length; i++) {
+		for (int i = startIndex + skipCount, size = sourceList.size(); i < size && filled < slots.length; i++)
 			inventory[slots[filled++]] = sourceList.get(i);
-		}
 	}
 
 	public void updateOutputs() {
