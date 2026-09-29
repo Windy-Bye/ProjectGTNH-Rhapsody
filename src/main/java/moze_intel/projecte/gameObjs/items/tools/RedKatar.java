@@ -11,7 +11,6 @@ import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
@@ -48,11 +47,9 @@ public class RedKatar extends PEToolBase implements IExtraFunction
 		this.secondaryClasses.add("shears");
 	}
 
-	private void ensureLooting(ItemStack stack)
-	{
-		if (EnchantmentHelper.getEnchantmentLevel(Enchantment.looting.effectId, stack) < 3) {
+	private void ensureLooting(ItemStack stack) {
+		if (EnchantmentHelper.getEnchantmentLevel(Enchantment.looting.effectId, stack) < 3)
 			stack.addEnchantment(Enchantment.looting, 3);
-		}
 	}
 
 	@Override
@@ -63,25 +60,14 @@ public class RedKatar extends PEToolBase implements IExtraFunction
 	}
 
 	@Override
-	public void onCreated(ItemStack stack, World world, EntityPlayer player)
-	{
+	public void onCreated(ItemStack stack, World world, EntityPlayer player) {
 		super.onCreated(stack, world, player);
 		ensureLooting(stack);
 	}
 
 	@Override
-	public void onUpdate(ItemStack stack, World world, Entity entity, int slot, boolean isHeld)
-	{
-		super.onUpdate(stack, world, entity, slot, isHeld);
-		if (!world.isRemote && entity.ticksExisted % 20 == 0) {
-			ensureLooting(stack);
-		}
-	}
-
-	@Override
 	public boolean hitEntity(ItemStack stack, EntityLivingBase damaged, EntityLivingBase damager)
 	{
-		ensureLooting(stack);
 		if (!damager.worldObj.isRemote) {
 			damaged.hurtResistantTime = 0; // 清除无敌帧
 			attackWithCharge(stack, damaged, damager, KATAR_BASE_ATTACK);
@@ -92,7 +78,6 @@ public class RedKatar extends PEToolBase implements IExtraFunction
 	@Override
 	public boolean onBlockStartBreak(ItemStack stack, int x, int y, int z, EntityPlayer player)
 	{
-		ensureLooting(stack);
 		shearBlock(stack, x, y, z, player);
 		return false;
 	}
@@ -100,7 +85,6 @@ public class RedKatar extends PEToolBase implements IExtraFunction
 	@Override
 	public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player)
 	{
-		ensureLooting(stack);
 		player.setItemInUse(stack, this.getMaxItemUseDuration(stack));
 		if (world.isRemote) return stack;
 
@@ -125,7 +109,6 @@ public class RedKatar extends PEToolBase implements IExtraFunction
 
 	@Override
 	public void doExtraFunction(ItemStack stack, EntityPlayer player) {
-		ensureLooting(stack);
 		attackAOE(stack, player, getMode(stack) == 1, Float.MAX_VALUE, 0);
 	}
 
