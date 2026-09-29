@@ -87,10 +87,10 @@ public class TransmutationContainer extends Container
 
 		if (slotIndex <= 8 || slotIndex == 26) // Input Slots, Lock Slot, and Unlearn Slot
 		{
-            if (ItemHelper.hasSpaceForSingle(player.inventory.mainInventory, stack)) {
-                ItemHelper.pushStackInInv(player.inventory, newStack);
-                transmutationInventory.setInventorySlotContents(slotIndex, null);
-            }
+			if (ItemHelper.hasSpaceForSingle(player.inventory.mainInventory, stack)) {
+				ItemHelper.pushStackInInv(player.inventory, newStack);
+				transmutationInventory.setInventorySlotContents(slotIndex, null);
+			}
 		}
 		else if (slotIndex >= 10 && slotIndex <= 25) // Output Slots
 		{
@@ -100,12 +100,13 @@ public class TransmutationContainer extends Container
 			int count = (int) Math.min(maxStackSize, transmutationInventory.emc / emc);
 			count = Math.min(count, ItemHelper.getSpaceFor(player.inventory.mainInventory, stack));
 
-			if (count <= 0) return null; // 确保至少能提取1个
+			if (count <= 0) return null;
 
 			newStack.stackSize = count;
 			transmutationInventory.removeEmc(emc * count);
 			ItemHelper.pushStackInInv(player.inventory, newStack);
 			transmutationInventory.updateOutputs();
+			return null; // 输出槽位必须返回 null
 		}
 		else if (slotIndex >= 27) // Player Inventory
 		{
@@ -117,6 +118,9 @@ public class TransmutationContainer extends Container
 			transmutationInventory.addEmc(emc * stack.stackSize);
 			transmutationInventory.handleKnowledge(stack);
 			slot.putStack(null);
+
+			// 必须返回复制的原始堆叠，告诉客户端转移成功了，否则客户端会认为失败而还原物品UI
+			return newStack;
 		}
 		return null;
 	}

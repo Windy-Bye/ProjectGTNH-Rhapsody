@@ -21,21 +21,24 @@ public class SlotOutput extends Slot
 	{
 		ItemStack stack = getStack().copy();
 		stack.stackSize = amount;
-        double emcValue = amount * EMCHelper.getEmcValue(stack);
+		double emcValue = amount * EMCHelper.getEmcValue(stack);
 		if (emcValue > inv.emc) {
-			//Requesting more emc than available
-			//Can not return `null` here or NPE in Container! Container expects stacksize=0-Itemstack for 'nothing'
 			stack.stackSize = 0;
 			return stack;
 		}
 		inv.removeEmc(emcValue);
-		//inv.checkForUpdates(); // 买不起页面里价值最高的物品才刷新？nonono
-		inv.updateOutputs(); // emc 减少了就该刷新输出
+		inv.updateOutputs();
 		return stack;
 	}
 
 	@Override
-	public void putStack(ItemStack stack) {}
+	public void putStack(ItemStack stack) {
+		// NEI 在模拟拿取失败退回物品时，必须将预扣除的 EMC 返还
+		if (stack != null) {
+			inv.addEmc(EMCHelper.getEmcValue(stack) * stack.stackSize);
+			inv.updateOutputs();
+		}
+	}
 
 	@Override
 	public boolean isItemValid(ItemStack stack)
