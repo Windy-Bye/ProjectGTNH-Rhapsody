@@ -100,13 +100,12 @@ public class TransmutationContainer extends Container
 			int count = (int) Math.min(maxStackSize, transmutationInventory.emc / emc);
 			count = Math.min(count, ItemHelper.getSpaceFor(player.inventory.mainInventory, stack));
 
-			if (count <= 0) return null;
+			if (count <= 0) return null; // 确保至少能提取1个
 
 			newStack.stackSize = count;
 			transmutationInventory.removeEmc(emc * count);
 			ItemHelper.pushStackInInv(player.inventory, newStack);
 			transmutationInventory.updateOutputs();
-			return null; // 输出槽位必须返回 null
 		}
 		else if (slotIndex >= 27) // Player Inventory
 		{
@@ -118,9 +117,6 @@ public class TransmutationContainer extends Container
 			transmutationInventory.addEmc(emc * stack.stackSize);
 			transmutationInventory.handleKnowledge(stack);
 			slot.putStack(null);
-
-			// 必须返回复制的原始堆叠，告诉客户端转移成功了，否则客户端会认为失败而还原物品UI
-			return newStack;
 		}
 		return null;
 	}
@@ -139,8 +135,21 @@ public class TransmutationContainer extends Container
 		}
 	}
 
+	private boolean isCalledByNEI() {
+		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+		final int depth = Math.max(stack.length, 13);
+		// 跳过 getStackTrace(), isCalledByNEI(), slotClick()，最多检查 10 层堆栈
+		for (int i = 3; i < depth; i++)
+			if (stack[i].getClassName().startsWith("codechicken.nei"))
+				return true;
+		return false;
+	}
+
 	@Override
 	public ItemStack slotClick(int slot, int button, int clickType, EntityPlayer player) {
+		if (isCalledByNEI())
+			return null;
+
 		if (player.worldObj.isRemote && 10 <= slot && slot <= 25)
 			PacketHandler.sendToServer(new SearchUpdatePKT(slot, getSlot(slot).getStack()));
 
