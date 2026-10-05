@@ -135,7 +135,7 @@ public class TransmutationContainer extends Container
 		}
 	}
 
-	private boolean isCalledByNEI() {
+	private static boolean isCalledByNEI() {
 		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
 		final int depth = Math.max(stack.length, 13);
 		// 跳过 getStackTrace(), isCalledByNEI(), slotClick()，最多检查 10 层堆栈
@@ -177,10 +177,8 @@ public class TransmutationContainer extends Container
 		// 这样即使 putStack 层面因为 isSame 拦截了自动学习，手动互换依然能被正确记录。
 		if (slot >= 0 && slot <= 8) {
 			ItemStack stack = theSlot.getStack();
-			if (stack != null) {
-				if (EMCHelper.doesItemHaveEmc(stack) && stack.getItem() != ObjHandler.tome)
-					transmutationInventory.handleKnowledge(stack); // 知识之书不需要在此处学习
-			}
+			if (EMCHelper.doesItemHaveEmc(stack) && stack.getItem() != ObjHandler.tome)
+				transmutationInventory.handleKnowledge(stack); // 知识之书不需要在此处学习
 		}
 
 		return result;
