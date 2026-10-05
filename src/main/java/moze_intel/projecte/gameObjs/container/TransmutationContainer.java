@@ -139,9 +139,12 @@ public class TransmutationContainer extends Container
 		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
 		final int depth = Math.max(stack.length, 13);
 		// 跳过 getStackTrace(), isCalledByNEI(), slotClick()，最多检查 10 层堆栈
-		for (int i = 3; i < depth; i++)
-			if (stack[i].getClassName().startsWith("codechicken.nei"))
+		for (int i = 3; i < depth; i++) {
+			String className = stack[i].getClassName(), methodName = stack[i].getMethodName();
+			if ((className.equals("codechicken.nei.guihook.GuiContainerManager") && methodName.equals("handleSlotClick"))
+				|| className.equals("codechicken.nei.FastTransferManager"))
 				return true;
+		}
 		return false;
 	}
 
@@ -150,12 +153,12 @@ public class TransmutationContainer extends Container
 		if (isCalledByNEI())
 			return null;
 
-		if (player.worldObj.isRemote && 10 <= slot && slot <= 25)
-			PacketHandler.sendToServer(new SearchUpdatePKT(slot, getSlot(slot).getStack()));
-
 		Slot theSlot = null;
 		if (slot >= 0)
 			theSlot = getSlot(slot); // 被点击的槽位对象
+
+		if (player.worldObj.isRemote && 10 <= slot && slot <= 25)
+			PacketHandler.sendToServer(new SearchUpdatePKT(slot, theSlot.getStack()));
 
 		if (clickType == 4 && theSlot instanceof SlotOutput)
 			return null; // 禁止从输出槽位中丢弃物品（又来？）
@@ -173,11 +176,10 @@ public class TransmutationContainer extends Container
 		// 如果玩家手动点击交互的是 Input 或 Lock 槽位 (0~8)，主动触发一次知识学习。
 		// 这样即使 putStack 层面因为 isSame 拦截了自动学习，手动互换依然能被正确记录。
 		if (slot >= 0 && slot <= 8) {
-			Slot clickedSlot = getSlot(slot);
-			if (clickedSlot != null && clickedSlot.getHasStack()) {
-				ItemStack stackInSlot = clickedSlot.getStack();
-				if (EMCHelper.doesItemHaveEmc(stackInSlot) && stackInSlot.getItem() != ObjHandler.tome)
-					transmutationInventory.handleKnowledge(stackInSlot);// 知识之书不需要在此处学习
+			ItemStack stack = theSlot.getStack();
+			if (stack != null) {
+				if (EMCHelper.doesItemHaveEmc(stack) && stack.getItem() != ObjHandler.tome)
+					transmutationInventory.handleKnowledge(stack); // 知识之书不需要在此处学习
 			}
 		}
 
