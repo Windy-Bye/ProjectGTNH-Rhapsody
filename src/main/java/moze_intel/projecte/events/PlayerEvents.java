@@ -30,7 +30,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
-import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -38,7 +37,7 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 public class PlayerEvents {
 	// Handles playerData props from being wiped on death
 	@SubscribeEvent
-	public void cloneEvent(PlayerEvent.Clone evt) {
+	public void onPlayerClone(PlayerEvent.Clone evt) {
 		if (!evt.wasDeath) return; // Vanilla handles it for us.
 
 		NBTTagCompound bag = new NBTTagCompound();
@@ -75,9 +74,9 @@ public class PlayerEvents {
 	}
 
 	@SubscribeEvent
-	public void onHighAlchemistJoin(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent evt) {
+	public void onPlayerJoin(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent evt) {
 		EntityPlayer player = evt.player;
-		if (PECore.uuids.contains((player.getUniqueID().toString()))) {
+		if (PECore.AUTHOR_UUID.contains(player.getUniqueID().toString())) {
 			IChatComponent prior = ChatHelper.modifyColor(new ChatComponentTranslation("pe.server.high_alchemist"), EnumChatFormatting.BLUE);
 			IChatComponent playername = ChatHelper.modifyColor(new ChatComponentText(" " + player.getCommandSenderName() + " "), EnumChatFormatting.GOLD);
 			IChatComponent latter = ChatHelper.modifyColor(new ChatComponentTranslation("pe.server.has_joined"), EnumChatFormatting.BLUE);
@@ -86,12 +85,12 @@ public class PlayerEvents {
 	}
 
 	@SubscribeEvent
-	public void playerChangeDimension(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent event) {
+	public void onPlayerChangeDimension(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent event) {
 		PlayerChecks.onPlayerChangeDimension((EntityPlayerMP) event.player);
 	}
 
 	@SubscribeEvent
-	public void pickupItem(EntityItemPickupEvent event) {
+	public void onPlayerPickupItem(EntityItemPickupEvent event) {
 		EntityPlayer player = event.entityPlayer;
 		World world = player.worldObj;
 
@@ -146,27 +145,14 @@ public class PlayerEvents {
 	}
 
 	@SubscribeEvent
-	public void onItemToss(ItemTossEvent event) {
-		EntityPlayer player = event.player;
-		ItemStack stack = event.entityItem.getEntityItem();
+	public void onItemCrafted(cpw.mods.fml.common.gameevent.PlayerEvent.ItemCraftedEvent event) {
+		if (event.crafting == null || event.crafting.getItem() != ObjHandler.builderswand) return;
 
-		// 判断丢出的物品是否为我们需要保护的工具/武器
-		if (stack != null && stack.getItem() instanceof PEToolBase) {
-
-			// 如果没有打开额外的GUI，openContainer 就是玩家自身的 inventoryContainer
-			if (player.openContainer == player.inventoryContainer) {
-
-				// 取消抛出事件
-				event.setCanceled(true);
-				event.entityItem.setDead();
-
-				// 将物品重新塞回玩家背包
-				player.inventory.addItemStackToInventory(stack);
-
-				// 在服务端强制同步玩家背包
-				if (!player.worldObj.isRemote && player instanceof EntityPlayerMP) {
-					((EntityPlayerMP) player).inventoryContainer.detectAndSendChanges();
-				}
+		for (int i = 0; i < event.craftMatrix.getSizeInventory(); i++) {
+			ItemStack stack = event.craftMatrix.getStackInSlot(i);
+			if (stack != null && stack.getItem() == ObjHandler.philosStone) {
+				event.craftMatrix.setInventorySlotContents(i, null);
+				break;
 			}
 		}
 	}
@@ -220,5 +206,4 @@ public class PlayerEvents {
 			}
 		}
 	}
-
 }

@@ -37,7 +37,7 @@ public class MatterFurnace extends BlockDirection
 	public MatterFurnace(boolean active, boolean isRM)
 	{
 		super(Material.rock);
-		this.setCreativeTab(ObjHandler.cTab);
+		this.setCreativeTab(ObjHandler.tab);
 		isActive = active;
 		isHighTier = isRM;
 		textureName = isHighTier ? "rm" : "dm";

@@ -30,7 +30,7 @@ public abstract class GemArmorBase extends ItemArmor implements ISpecialArmor
 
 	public GemArmorBase(EnumArmorType armorType) {
 		super(ArmorMaterial.DIAMOND, 0, armorType.ordinal());
-		this.setCreativeTab(ObjHandler.cTab);
+		this.setCreativeTab(ObjHandler.tab);
 		this.setUnlocalizedName("pe_gem_armor_" + armorType.ordinal());
 		this.setHasSubtypes(false);
 		this.setMaxDamage(0);

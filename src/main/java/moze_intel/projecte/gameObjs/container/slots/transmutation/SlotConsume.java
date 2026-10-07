@@ -1,5 +1,6 @@
 package moze_intel.projecte.gameObjs.container.slots.transmutation;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import moze_intel.projecte.gameObjs.ObjHandler;
@@ -34,5 +35,11 @@ public class SlotConsume extends Slot
 	public boolean isItemValid(ItemStack stack)
 	{
 		return !inv.hasMaxedEmc() && (EMCHelper.doesItemHaveEmc(stack) || stack.getItem() == ObjHandler.tome);
+	}
+
+	@Override
+	public boolean canTakeStack(EntityPlayer player)
+	{
+		return false;
 	}
 }

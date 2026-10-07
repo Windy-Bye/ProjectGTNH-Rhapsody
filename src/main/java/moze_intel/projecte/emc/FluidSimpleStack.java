@@ -11,9 +11,7 @@ public class FluidSimpleStack extends SimpleStack {
 	}
 
 	public FluidSimpleStack(FluidStack fs) {
-		this(-1);
-		if (fs != null && fs.getFluid() != null)
-			id = fs.getFluidID();
+		this((fs != null && fs.getFluid() != null) ? fs.getFluidID() : -1);
 	}
 
 	@Override

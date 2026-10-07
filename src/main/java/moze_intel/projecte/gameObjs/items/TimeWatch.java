@@ -51,7 +51,12 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 	@SideOnly(Side.CLIENT)
 	private IIcon ringOn;
 
-	public TimeWatch() {
+	// 记录上一次处理到的索引，用于轮询防止机器饿死
+	private static int lastProcessedIndex = 0;
+	private static int lastRandomTickIndex = 0;
+
+	public TimeWatch()
+	{
 		super("time_watch", (byte)2);
 		this.setNoRepair();
 	}
@@ -135,20 +140,28 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 	/**
 	 * @return true if time limit reached, false otherwise
 	 */
-	private boolean speedUpTileEntities(World world, int bonusTicks, AxisAlignedBB bBox, long stopTime) {
+	private boolean speedUpTileEntities(World world, int bonusTicks, AxisAlignedBB bBox, long stopTime)
+	{
 		if (bBox == null || bonusTicks == 0) return false;
 
 		List<TileEntity> list = WorldHelper.getTileEntitiesWithinAABB(world, bBox);
-		final int length = list.size();
+		if (list.isEmpty()) return false;
+
 		int count = 0;
+		int size = list.size();
 
 		for (int i = 0; i < bonusTicks; i++)
 		{
-			for (int j = 0; j < length; j++)
+			for (int j = 0; j < size; j++)
 			{
-				TileEntity tile = list.get(j);
+				int index = (lastProcessedIndex + j) % size;
+				TileEntity tile = list.get(index);
+
 				// 每处理 16 个机器检查一次时间，避免 nanoTime 本身带来开销
-				if ((++count & 15) == 0 && System.nanoTime() > stopTime) return true;
+				if ((++count & 15) == 0 && System.nanoTime() > stopTime) {
+					lastProcessedIndex = (index + 1) % size;
+					return true;
+				}
 
 				if (!tile.isInvalid() && !internalBlacklist.contains(tile.getClass().getName()))
 					tile.updateEntity();
@@ -160,27 +173,51 @@ public class TimeWatch extends ItemCharge implements IModeChanger, IBauble, IPed
 	/**
 	 * @return true if time limit reached, false otherwise
 	 */
-	private boolean speedUpRandomTicks(World world, int bonusTicks, AxisAlignedBB bBox, long stopTime) {
+	private boolean speedUpRandomTicks(World world, int bonusTicks, AxisAlignedBB bBox, long stopTime)
+	{
 		if (bBox == null || bonusTicks == 0) return false;
 
-		final int minX = (int) bBox.minX, maxX = (int) bBox.maxX;
-		final int minY = (int) bBox.minY, maxY = (int) bBox.maxY;
-		final int minZ = (int) bBox.minZ, maxZ = (int) bBox.maxZ;
+		int minX = (int) bBox.minX;
+		int maxX = (int) bBox.maxX;
+		int minY = (int) bBox.minY;
+		int maxY = (int) bBox.maxY;
+		int minZ = (int) bBox.minZ;
+		int maxZ = (int) bBox.maxZ;
 
-		// 调整遍历顺序为 Y 外层，Z、X 内层
-		for (int x = minX; x <= maxX; x++) {
-			for (int z = minZ; z <= maxZ; z++)
+		int sizeX = maxX - minX + 1;
+		int sizeZ = maxZ - minZ + 1;
+		int totalColumns = sizeX * sizeZ;
+
+		if (totalColumns <= 0) return false;
+
+		// 采用偏移量轮询遍历 X 和 Z
+		for (int i = 0; i < totalColumns; i++)
+		{
+			int index = (lastRandomTickIndex + i) % totalColumns;
+			int x = minX + (index % sizeX);
+			int z = minZ + (index / sizeX);
+
+			// 在列级别检查超时
+			if (System.nanoTime() > stopTime) {
+				lastRandomTickIndex = (index + 1) % totalColumns;
+				return true;
+			}
+
+			if (!world.blockExists(x, 0, z)) continue;
+
+			for (int y = minY; y <= maxY; y++)
 			{
-				if (System.nanoTime() > stopTime) return true; // 在列级别检查超时
-				if (!world.blockExists(x, 0, z)) continue;
+				Block block = world.getBlock(x, y, z);
 
-				for (int y = minY; y <= maxY; y++) {
-					Block block = world.getBlock(x, y, z);
-					if (block.getTickRandomly() && !(block instanceof BlockLiquid) && !(block instanceof BlockFluidBase)
-						&& !(block instanceof IGrowable) && !(block instanceof IPlantable))
+				if (block.getTickRandomly()
+					&& !(block instanceof BlockLiquid)
+					&& !(block instanceof BlockFluidBase)
+					&& !(block instanceof IGrowable)
+					&& !(block instanceof IPlantable))
+				{
+					for (int b = 0; b < bonusTicks; b++)
 					{
-						for (int i = 0; i < bonusTicks; i++)
-							block.updateTick(world, x, y, z, itemRand);
+						block.updateTick(world, x, y, z, itemRand);
 					}
 				}
 			}
