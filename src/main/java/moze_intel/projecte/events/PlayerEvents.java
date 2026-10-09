@@ -5,7 +5,7 @@ import moze_intel.projecte.PECore;
 import moze_intel.projecte.gameObjs.ObjHandler;
 import moze_intel.projecte.gameObjs.container.AlchBagContainer;
 import moze_intel.projecte.gameObjs.items.AlchemicalBag;
-import moze_intel.projecte.gameObjs.items.tools.PEToolBase;
+import moze_intel.projecte.gameObjs.tiles.AEGUTile;
 import moze_intel.projecte.handlers.PlayerChecks;
 import moze_intel.projecte.playerData.AlchBagProps;
 import moze_intel.projecte.playerData.AlchemicalBags;
@@ -146,7 +146,7 @@ public class PlayerEvents {
 
 	@SubscribeEvent
 	public void onItemCrafted(cpw.mods.fml.common.gameevent.PlayerEvent.ItemCraftedEvent event) {
-		if (event.crafting == null || event.crafting.getItem() != ObjHandler.builderswand) return;
+		if (event.crafting == null || event.crafting.getItem() != ObjHandler.buildersWand) return;
 
 		for (int i = 0; i < event.craftMatrix.getSizeInventory(); i++) {
 			ItemStack stack = event.craftMatrix.getStackInSlot(i);
@@ -192,9 +192,9 @@ public class PlayerEvents {
 				}
 
 				net.minecraft.tileentity.TileEntity aeguTile = event.world.getTileEntity(aeguX, aeguY, aeguZ);
-				if (aeguTile instanceof moze_intel.projecte.gameObjs.tiles.TileAEGU)
+				if (aeguTile instanceof AEGUTile)
 				{
-					boolean success = ((moze_intel.projecte.gameObjs.tiles.TileAEGU) aeguTile).bindCondenser(event.x, event.y, event.z);
+					boolean success = ((AEGUTile) aeguTile).bindCondenser(event.x, event.y, event.z);
 					if (success) {
 						player.addChatMessage(new net.minecraft.util.ChatComponentTranslation("pe.aegu.bindsuccess"));
 					} else {

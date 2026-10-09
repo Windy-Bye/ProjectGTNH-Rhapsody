@@ -3,7 +3,7 @@ package moze_intel.projecte.gameObjs.blocks;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import moze_intel.projecte.gameObjs.ObjHandler;
-import moze_intel.projecte.gameObjs.tiles.TileAEGU;
+import moze_intel.projecte.gameObjs.tiles.AEGUTile;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
@@ -16,7 +16,7 @@ import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.World;
 
-public class BlockAEGU extends BlockContainer
+public class AEGU extends BlockContainer
 {
 	@SideOnly(Side.CLIENT)
 	private IIcon iconError;
@@ -25,11 +25,11 @@ public class BlockAEGU extends BlockContainer
 	@SideOnly(Side.CLIENT)
 	private IIcon iconActive;
 
-	public BlockAEGU()
+	public AEGU()
 	{
 		super(Material.iron);
 		this.setBlockName("pe_aegu");
-		this.setCreativeTab(ObjHandler.cTab);
+		this.setCreativeTab(ObjHandler.tab);
 		this.setHardness(3.0F);
 		this.setResistance(10.0F);
 		this.setLightOpacity(0); // 保证不阻挡收集器吸收阳光
@@ -38,7 +38,7 @@ public class BlockAEGU extends BlockContainer
 	@Override
 	public TileEntity createNewTileEntity(World world, int meta)
 	{
-		return new TileAEGU();
+		return new AEGUTile();
 	}
 
 	@Override
@@ -74,9 +74,9 @@ public class BlockAEGU extends BlockContainer
 		if (player.getHeldItem() != null && player.getHeldItem().getItem() == ObjHandler.philosStone)
 		{
 			TileEntity tile = world.getTileEntity(x, y, z);
-			if (tile instanceof TileAEGU)
+			if (tile instanceof AEGUTile)
 			{
-				if (!((TileAEGU) tile).hasCollectorBelow()) {
+				if (!((AEGUTile) tile).hasCollectorBelow()) {
 					player.addChatMessage(new ChatComponentTranslation("pe.aegu.nocollector"));
 					return true;
 				}
@@ -100,9 +100,9 @@ public class BlockAEGU extends BlockContainer
 		if (!world.isRemote)
 		{
 			TileEntity tile = world.getTileEntity(x, y, z);
-			if (tile instanceof TileAEGU)
+			if (tile instanceof AEGUTile)
 			{
-				((TileAEGU) tile).validateEnvironment(); // 邻居方块改变时立刻校验，刷新贴图
+				((AEGUTile) tile).validateEnvironment(); // 邻居方块改变时立刻校验，刷新贴图
 			}
 		}
 	}
@@ -113,9 +113,9 @@ public class BlockAEGU extends BlockContainer
 		if (!world.isRemote)
 		{
 			TileEntity tile = world.getTileEntity(x, y, z);
-			if (tile instanceof TileAEGU)
+			if (tile instanceof AEGUTile)
 			{
-				((TileAEGU) tile).validateEnvironment(); // 放置时立刻校验一次以显示正确的贴图
+				((AEGUTile) tile).validateEnvironment(); // 放置时立刻校验一次以显示正确的贴图
 			}
 		}
 	}

@@ -14,14 +14,14 @@ import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
-public class ItemRodOfHarmony extends ItemPE
+public class RodOfHarmony extends ItemPE
 {
-	public ItemRodOfHarmony()
+	public RodOfHarmony()
 	{
 		this.setUnlocalizedName("rod_of_harmony");
 		this.setTextureName("projecte:rod_of_harmony");
 		this.setMaxStackSize(1);
-		this.setCreativeTab(ObjHandler.cTab);
+		this.setCreativeTab(ObjHandler.tab);
 	}
 
 	@Override

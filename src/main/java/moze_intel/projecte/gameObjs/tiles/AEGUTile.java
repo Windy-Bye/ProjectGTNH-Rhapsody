@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class TileAEGU extends TileEntity
+public class AEGUTile extends TileEntity
 {
 	private final List<ChunkCoordinates> boundCondensers = new ArrayList<>(8);
 	private int ticksExisted = 0;
