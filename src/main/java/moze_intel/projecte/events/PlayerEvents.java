@@ -5,6 +5,8 @@ import moze_intel.projecte.PECore;
 import moze_intel.projecte.gameObjs.ObjHandler;
 import moze_intel.projecte.gameObjs.container.AlchBagContainer;
 import moze_intel.projecte.gameObjs.items.AlchemicalBag;
+import moze_intel.projecte.gameObjs.tiles.AEGUTile;
+import moze_intel.projecte.gameObjs.tiles.CondenserTile;
 import moze_intel.projecte.handlers.PlayerChecks;
 import moze_intel.projecte.playerData.AlchBagProps;
 import moze_intel.projecte.playerData.AlchemicalBags;
@@ -21,6 +23,7 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
@@ -31,11 +34,12 @@ import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
 public class PlayerEvents {
 	// Handles playerData props from being wiped on death
 	@SubscribeEvent
-	public void cloneEvent(PlayerEvent.Clone evt) {
+	public void onPlayerClone(PlayerEvent.Clone evt) {
 		if (!evt.wasDeath) return; // Vanilla handles it for us.
 
 		NBTTagCompound bag = new NBTTagCompound();
@@ -72,9 +76,9 @@ public class PlayerEvents {
 	}
 
 	@SubscribeEvent
-	public void onHighAlchemistJoin(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent evt) {
+	public void onPlayerJoin(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent evt) {
 		EntityPlayer player = evt.player;
-		if (PECore.uuids.contains((player.getUniqueID().toString()))) {
+		if (PECore.AUTHOR_UUID.contains(player.getUniqueID().toString())) {
 			IChatComponent prior = ChatHelper.modifyColor(new ChatComponentTranslation("pe.server.high_alchemist"), EnumChatFormatting.BLUE);
 			IChatComponent playername = ChatHelper.modifyColor(new ChatComponentText(" " + player.getCommandSenderName() + " "), EnumChatFormatting.GOLD);
 			IChatComponent latter = ChatHelper.modifyColor(new ChatComponentTranslation("pe.server.has_joined"), EnumChatFormatting.BLUE);
@@ -83,12 +87,12 @@ public class PlayerEvents {
 	}
 
 	@SubscribeEvent
-	public void playerChangeDimension(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent event) {
+	public void onPlayerChangeDimension(cpw.mods.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent event) {
 		PlayerChecks.onPlayerChangeDimension((EntityPlayerMP) event.player);
 	}
 
 	@SubscribeEvent
-	public void pickupItem(EntityItemPickupEvent event) {
+	public void onPlayerPickupItem(EntityItemPickupEvent event) {
 		EntityPlayer player = event.entityPlayer;
 		World world = player.worldObj;
 
@@ -136,6 +140,66 @@ public class PlayerEvents {
 
 				AlchemicalBags.set(player, (byte) bag.getItemDamage(), inv);
 				AlchemicalBags.syncPartial(player, bag.getItemDamage());
+
+				event.setCanceled(true);
+			}
+		}
+	}
+
+	@SubscribeEvent
+	public void onItemCrafted(cpw.mods.fml.common.gameevent.PlayerEvent.ItemCraftedEvent event) {
+		if (event.crafting == null || event.crafting.getItem() != ObjHandler.buildersWand) return;
+
+		for (int i = 0, size = event.craftMatrix.getSizeInventory(); i < size; i++) {
+			ItemStack stack = event.craftMatrix.getStackInSlot(i);
+			if (stack != null && stack.getItem() == ObjHandler.philosStone) {
+				event.craftMatrix.setInventorySlotContents(i, null);
+				break;
+			}
+		}
+	}
+
+	@SubscribeEvent
+	public void onPlayerInteract(PlayerInteractEvent event)
+	{
+		if (event.world.isRemote || event.action != PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) return;
+
+		EntityPlayer player = event.entityPlayer;
+		ItemStack heldItem = player.getHeldItem();
+
+		if (heldItem != null && heldItem.getItem() == ObjHandler.philosStone && heldItem.hasTagCompound() && heldItem.stackTagCompound.hasKey("aegu_bind_x"))
+		{
+			TileEntity targetTile = event.world.getTileEntity(event.x, event.y, event.z);
+
+			if (targetTile instanceof CondenserTile)
+			{
+				int aeguX = heldItem.stackTagCompound.getInteger("aegu_bind_x");
+				int aeguY = heldItem.stackTagCompound.getInteger("aegu_bind_y");
+				int aeguZ = heldItem.stackTagCompound.getInteger("aegu_bind_z");
+				int aeguDim = heldItem.stackTagCompound.getInteger("aegu_bind_dim");
+
+				if (aeguDim != event.world.provider.dimensionId)
+				{
+					player.addChatMessage(new ChatComponentTranslation("pe.aegu.wrongdim"));
+					event.setCanceled(true);
+					return;
+				}
+
+				double distSq = Math.pow(aeguX - event.x, 2) + Math.pow(aeguY - event.y, 2) + Math.pow(aeguZ - event.z, 2);
+				if (distSq > 64.0)
+				{
+					player.addChatMessage(new ChatComponentTranslation("pe.aegu.toofar"));
+					event.setCanceled(true);
+					return;
+				}
+
+				TileEntity tile = event.world.getTileEntity(aeguX, aeguY, aeguZ);
+				if (tile instanceof AEGUTile aegu)
+				{
+					if (aegu.bindCondenser(event.x, event.y, event.z))
+						player.addChatMessage(new ChatComponentTranslation("pe.aegu.bindsuccess"));
+					else player.addChatMessage(new ChatComponentTranslation("pe.aegu.bindfull"));
+				}
 
 				event.setCanceled(true);
 			}

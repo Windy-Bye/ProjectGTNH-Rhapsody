@@ -11,10 +11,14 @@ import net.minecraft.block.BlockGrass;
 import net.minecraft.block.BlockGravel;
 import net.minecraft.block.BlockSand;
 import net.minecraft.block.material.Material;
+import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
@@ -22,6 +26,8 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
+
+import java.util.List;
 
 public class RedStar extends PEToolBase
 {
@@ -32,7 +38,7 @@ public class RedStar extends PEToolBase
 			StatCollector.translateToLocal("pe.morningstar.mode2"),
 			StatCollector.translateToLocal("pe.morningstar.mode3"),
 			StatCollector.translateToLocal("pe.morningstar.mode4"),
-			EnumChatFormatting.RED + "精确挖掘 (Precision)"
+			EnumChatFormatting.RED + "精确挖掘"
 		});
 		this.setNoRepair();
 		this.peToolMaterial = "rm_tools";
@@ -63,6 +69,24 @@ public class RedStar extends PEToolBase
 		for (String str : secondaryClasses)
 			setHarvestLevel(str, 4);
 		setHarvestLevel(pePrimaryToolClass, 4);
+	}
+
+	private void ensureFortune(ItemStack stack) {
+		if (EnchantmentHelper.getEnchantmentLevel(Enchantment.fortune.effectId, stack) < 3)
+			stack.addEnchantment(Enchantment.fortune, 3);
+	}
+
+	@Override
+	public void getSubItems(Item item, CreativeTabs tab, List<ItemStack> list) {
+		ItemStack star = new ItemStack(this);
+		star.addEnchantment(Enchantment.fortune, 3);
+		list.add(star);
+	}
+
+	@Override
+	public void onCreated(ItemStack stack, World world, EntityPlayer player) {
+		super.onCreated(stack, world, player);
+		ensureFortune(stack);
 	}
 
 	@Override

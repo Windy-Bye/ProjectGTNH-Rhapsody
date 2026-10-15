@@ -21,7 +21,7 @@ public class SlotOutput extends Slot
 	{
 		ItemStack stack = getStack().copy();
 		stack.stackSize = amount;
-        double emcValue = amount * EMCHelper.getEmcValue(stack);
+		double emcValue = amount * EMCHelper.getEmcValue(stack);
 		if (emcValue > inv.emc) {
 			//Requesting more emc than available
 			//Can not return `null` here or NPE in Container! Container expects stacksize=0-Itemstack for 'nothing'
@@ -29,7 +29,6 @@ public class SlotOutput extends Slot
 			return stack;
 		}
 		inv.removeEmc(emcValue);
-		//inv.checkForUpdates(); // 买不起页面里价值最高的物品才刷新？nonono
 		inv.updateOutputs(); // emc 减少了就该刷新输出
 		return stack;
 	}
@@ -46,9 +45,9 @@ public class SlotOutput extends Slot
 	@Override
 	public boolean canTakeStack(EntityPlayer player)
 	{
-		if (getHasStack()) {
-			return EMCHelper.getEmcValue(getStack()) <= inv.emc;
-		}
+		ItemStack stack = getStack();
+		if (stack != null)
+			return EMCHelper.getEmcValue(stack) <= inv.emc;
 		return true;
 	}
 }

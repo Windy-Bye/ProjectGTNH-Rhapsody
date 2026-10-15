@@ -8,15 +8,21 @@ import net.minecraft.block.BlockGrass;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.material.Material;
+import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumAction;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
+
+import java.util.List;
 
 public class RedKatar extends PEToolBase implements IExtraFunction
 {
@@ -39,6 +45,24 @@ public class RedKatar extends PEToolBase implements IExtraFunction
 		this.secondaryClasses.add("axe");
 		this.secondaryClasses.add("hoe");
 		this.secondaryClasses.add("shears");
+	}
+
+	private void ensureLooting(ItemStack stack) {
+		if (EnchantmentHelper.getEnchantmentLevel(Enchantment.looting.effectId, stack) < 3)
+			stack.addEnchantment(Enchantment.looting, 3);
+	}
+
+	@Override
+	public void getSubItems(Item item, CreativeTabs tab, List<ItemStack> list) {
+		ItemStack katar = new ItemStack(this);
+		katar.addEnchantment(Enchantment.looting, 3);
+		list.add(katar);
+	}
+
+	@Override
+	public void onCreated(ItemStack stack, World world, EntityPlayer player) {
+		super.onCreated(stack, world, player);
+		ensureLooting(stack);
 	}
 
 	@Override

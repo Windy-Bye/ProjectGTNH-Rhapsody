@@ -12,6 +12,8 @@ import moze_intel.projecte.utils.ItemSearchHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTBase;
+import net.minecraft.nbt.NBTTagCompound;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +31,14 @@ public class TransmutationInventory implements IInventory {
 	public int searchpage = 0;
 	public double emc;
 
-	private List<ItemStack> cachedSortedKnowledge = new ArrayList<>();
+	// 双轨知识库缓存
+	private List<ItemStack> cachedMatter = new ArrayList<>();
+	private List<ItemStack> cachedFuel = new ArrayList<>();
+
+	// 渐进搜索缓存
+	private List<ItemStack> filteredMatter = new ArrayList<>();
+	private List<ItemStack> filteredFuel = new ArrayList<>();
+	private String lastFilter = null;
 	private boolean knowledgeDirty = true; // 知识库缓存标记
 
 	public TransmutationInventory(EntityPlayer player)
@@ -49,7 +58,7 @@ public class TransmutationInventory implements IInventory {
 		processNBTTags(is);
 		if (!Transmutation.hasKnowledgeForStack(is, player)) {
 			learnFlag = 300;
-            unlearnFlag = 0;
+			unlearnFlag = 0;
 			knowledgeDirty = true;
 
 			if (is.getItem() == ObjHandler.tome) {
@@ -69,14 +78,30 @@ public class TransmutationInventory implements IInventory {
 	}
 
 	public static void processNBTTags(ItemStack stack) {
-		if (stack == null) return;
-		if (!EMCMapper.enableNBTprocess) {
+		if (stack == null || stack.stackTagCompound == null) return;
+
+		if (!EMCMapper.enableNBTprocess || stack.stackTagCompound.hasNoTags()) {
 			stack.stackTagCompound = null;
 			return;
 		}
 
 		// 白名单过滤逻辑：只保留配置文件中允许的 NBT 键
-		stack.stackTagCompound = ItemHelper.filterNBT(stack);
+		// 以及 ench, StoredEnchantments, RepairCost, display
+		NBTTagCompound res = ItemHelper.filterNBT(stack);
+		if (res == null)
+			res = new NBTTagCompound();
+
+		NBTBase tag;
+		if ((tag = stack.stackTagCompound.getTag("ench")) != null)
+			res.setTag("ench", tag.copy());
+		if ((tag = stack.stackTagCompound.getTag("StoredEnchantments")) != null)
+			res.setTag("StoredEnchantments", tag.copy());
+		if ((tag = stack.stackTagCompound.getTag("RepairCost")) != null)
+			res.setTag("RepairCost", tag.copy());
+		if ((tag = stack.stackTagCompound.getTag("display")) != null)
+			res.setTag("display", tag.copy());
+
+		stack.stackTagCompound = res.hasNoTags() ? null : res;
 	}
 
 	public void handleUnlearn(ItemStack stack) {
@@ -92,7 +117,7 @@ public class TransmutationInventory implements IInventory {
 
 		if (Transmutation.hasKnowledgeForStack(is, player)) {
 			unlearnFlag = 300;
-            learnFlag = 0;
+			learnFlag = 0;
 			knowledgeDirty = true;
 
 			Transmutation.removeKnowledge(is, player);
@@ -104,97 +129,113 @@ public class TransmutationInventory implements IInventory {
 		updateOutputs();
 	}
 
+	// 更新搜索缓存并分类整理知识库
+	private void updateSearchCache() {
+		if (filter == null) filter = "";
+
+		// 如果知识库没变，且搜索词也没变，直接返回缓存
+		if (!knowledgeDirty && filter.equals(lastFilter)) return;
+
+		if (knowledgeDirty) {
+			cachedMatter.clear();
+			cachedFuel.clear();
+			for (ItemStack stack : Transmutation.getKnowledge(player)) {
+				if (FuelMapper.isStackFuel(stack)) cachedFuel.add(stack);
+				else cachedMatter.add(stack);
+			}
+			// 双轨严格按照 EMC 降序排序
+			cachedMatter.sort(Comparators.ITEMSTACK_EMC_DESCENDING);
+			cachedFuel.sort(Comparators.ITEMSTACK_EMC_DESCENDING);
+			knowledgeDirty = false;
+			lastFilter = null; // 强制刷新搜索
+		}
+
+		if (filter.isEmpty()) {
+			filteredMatter = cachedMatter;
+			filteredFuel = cachedFuel;
+		}
+		else {
+			ItemSearchHelper searchHelper = ItemSearchHelper.create(filter);
+
+			// 如果新搜索词是以旧词开头的，就在上次过滤的结果上继续搜
+			List<ItemStack> sourceMatter = (lastFilter != null && filter.startsWith(lastFilter)) ? filteredMatter : cachedMatter;
+			List<ItemStack> sourceFuel = (lastFilter != null && filter.startsWith(lastFilter)) ? filteredFuel : cachedFuel;
+
+			filteredMatter = new ArrayList<>();
+			for (ItemStack s : sourceMatter)
+				if (searchHelper.doesItemMatchFilter(s))
+					filteredMatter.add(s);
+
+			filteredFuel = new ArrayList<>();
+			for (ItemStack s : sourceFuel)
+				if (searchHelper.doesItemMatchFilter(s))
+					filteredFuel.add(s);
+		}
+		lastFilter = filter;
+	}
+
+	// 使用二分查找寻找第一个 EMC <= target 的物品索引
+	private int findStartIndexByEmc(List<ItemStack> list, double targetEmc) {
+		int left = 0, right = list.size() - 1;
+		int ans = -1;
+		while (left <= right) {
+			int mid = left + (right - left) / 2;
+			double midEmc = EMCHelper.getEmcValue(list.get(mid));
+			if (midEmc <= targetEmc) {
+				ans = mid;
+				right = mid - 1; // 尝试寻找更靠左的（同 EMC 的前置项）
+			}
+			else left = mid + 1; // 当前项 EMC 太大，往右找更小的
+		}
+		return ans;
+	}
+
+	private void fillOutputs(List<ItemStack> sourceList, int[] slots, double reqEmc, int skipCount) {
+		int startIndex = findStartIndexByEmc(sourceList, reqEmc);
+		if (startIndex == -1) return;
+
+		int filled = 0;
+		// 结合 startIndex 与 分页 skipCount 实现偏移直接定位目标页面的物品
+		for (int i = startIndex + skipCount, size = sourceList.size(); i < size && filled < slots.length; i++)
+			inventory[slots[filled++]] = sourceList.get(i);
+	}
+
 	public void updateOutputs() {
 		if (!player.worldObj.isRemote) return;
 
-		if (knowledgeDirty) {
-			cachedSortedKnowledge = new ArrayList<>(Transmutation.getKnowledge(player));
-			cachedSortedKnowledge.sort(Comparators.ITEMSTACK_EMC_DESCENDING);
-			knowledgeDirty = false;
-		}
+		updateSearchCache();
 
-		for (int i : MATTER_INDEXES)
-			inventory[i] = null;
+		for (int i : MATTER_INDEXES) inventory[i] = null;
+		for (int i : FUEL_INDEXES) inventory[i] = null;
 
-		for (int i : FUEL_INDEXES)
-			inventory[i] = null;
-
-		ItemSearchHelper searchHelper = ItemSearchHelper.create(filter);
-
-		double reqEmc = 0;
-		if (inventory[LOCK_INDEX] != null)
+		double reqEmc = emc;
+		if (inventory[LOCK_INDEX] != null) {
 			reqEmc = EMCHelper.getEmcValue(inventory[LOCK_INDEX]);
-
-		if (reqEmc > emc || reqEmc == 0)
-			reqEmc = emc;
-
-		int matterCounter = 0, fuelCounter = 0;
-		int matterPageCounter = 0, fuelPageCounter = 0;
-		final int matterStartIndex = searchpage * 12, fuelStartIndex = searchpage * 4;
-
-		for (ItemStack stack : cachedSortedKnowledge) {
-			if (EMCHelper.getEmcValue(stack) > reqEmc) continue;
-			if (!searchHelper.doesItemMatchFilter(stack)) continue;
-
-			if (FuelMapper.isStackFuel(stack)) {
-				if (fuelPageCounter < fuelStartIndex) {
-					fuelPageCounter++;
-					continue;
-				}
-				if (fuelCounter < 4) {
-					inventory[FUEL_INDEXES[fuelCounter]] = stack;
-					fuelCounter++;
-				}
-			}
-			else {
-				if (matterPageCounter < matterStartIndex) {
-					matterPageCounter++;
-					continue;
-				}
-				if (matterCounter < 12) {
-					inventory[MATTER_INDEXES[matterCounter]] = stack;
-					matterCounter++;
-				}
-			}
-			if (matterCounter >= 12 && fuelCounter >= 4) break;
+			if (reqEmc == 0 || reqEmc > emc) reqEmc = emc;
 		}
+
+		// 极速填充输出槽
+		fillOutputs(filteredMatter, MATTER_INDEXES, reqEmc, searchpage * 12);
+		fillOutputs(filteredFuel, FUEL_INDEXES, reqEmc, searchpage * 4);
 	}
 
 	public boolean hasNextPage() {
-		ItemSearchHelper searchHelper = ItemSearchHelper.create(filter);
+		updateSearchCache();
 
-		double reqEmc = 0;
-		if (inventory[LOCK_INDEX] != null)
+		double reqEmc = emc;
+		if (inventory[LOCK_INDEX] != null) {
 			reqEmc = EMCHelper.getEmcValue(inventory[LOCK_INDEX]);
-
-		if (reqEmc > emc || reqEmc == 0)
-			reqEmc = emc;
-
-		int matterCounter = 0, fuelCounter = 0;
-		int matterPageCounter = 0, fuelPageCounter = 0;
-		final int matterStartIndex = searchpage * 12, fuelStartIndex = searchpage * 4;
-
-		for (ItemStack stack : cachedSortedKnowledge) {
-			if (EMCHelper.getEmcValue(stack) > reqEmc) continue;
-			if (!searchHelper.doesItemMatchFilter(stack)) continue;
-
-			if (FuelMapper.isStackFuel(stack)) {
-				if (fuelPageCounter < fuelStartIndex) {
-					fuelPageCounter++;
-					continue;
-				}
-				fuelCounter++;
-			}
-			else {
-				if (matterPageCounter < matterStartIndex) {
-					matterPageCounter++;
-					continue;
-				}
-				matterCounter++;
-			}
-			if (matterCounter > 12 || fuelCounter > 4) return true;
+			if (reqEmc == 0 || reqEmc > emc) reqEmc = emc;
 		}
-		return false;
+
+		int startMatter = findStartIndexByEmc(filteredMatter, reqEmc);
+		int startFuel = findStartIndexByEmc(filteredFuel, reqEmc);
+
+		int matterAvailable = startMatter == -1 ? 0 : filteredMatter.size() - startMatter;
+		int fuelAvailable = startFuel == -1 ? 0 : filteredFuel.size() - startFuel;
+
+		// 只要可用的物品数量超出当前页面+1的容量，说明有下一页
+		return matterAvailable > (searchpage + 1) * 12 || fuelAvailable > (searchpage + 1) * 4;
 	}
 
 	public void writeIntoOutputSlot(int slot, ItemStack item) {
@@ -285,8 +326,6 @@ public class TransmutationInventory implements IInventory {
 
 	@Override
 	public void closeInventory() {
-		//if (player.worldObj.isRemote) return;
-
 		Transmutation.setEmc(player, emc);
 		Transmutation.setInputsAndLocks(Arrays.copyOfRange(inventory, 0, 9), player);
 		//Transmutation.sync(player);

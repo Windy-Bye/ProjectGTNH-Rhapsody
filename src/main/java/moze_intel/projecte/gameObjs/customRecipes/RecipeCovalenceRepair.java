@@ -18,7 +18,7 @@ import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.world.World;
 import moze_intel.projecte.gameObjs.ObjHandler;
 
-public class RecipesCovalenceRepair implements IRecipe
+public class RecipeCovalenceRepair implements IRecipe
 {
 	private ItemStack output;
 

@@ -1,23 +1,22 @@
 package moze_intel.projecte.integration;
 
 import cpw.mods.fml.common.Loader;
-import moze_intel.projecte.integration.mappers.GTMapper;
-import moze_intel.projecte.integration.MineTweaker.TweakInit;
 import moze_intel.projecte.integration.NEI.NEIInit;
+import moze_intel.projecte.integration.TConstruct.TConstructInit;
 import moze_intel.projecte.integration.mappers.ChiselMapper;
+import moze_intel.projecte.integration.mappers.GTMapper;
 import moze_intel.projecte.utils.PELogger;
 
 // Single class to initiate different mod compatibilities. Idea came from Avaritia by SpitefulFox
 public final class Integration
 {
-	public static boolean mtweak = false, NEI = false,
-        PHC = false, PHN = false, CCC = false, EFR = false,
-        natura = false, gregtech = false, forestry = false,
-		chisel = false, duraDisplay = false, avaritia = false;
+	public static boolean NEI = false, PHC = false, PHN = false, CCC = false,
+		EFR = false, natura = false, gregtech = false, forestry = false,
+		chisel = false, duraDisplay = false, avaritia = false,
+		botania = false, TConstruct = false;
 
 	public static void modChecks()
 	{
-		mtweak = Loader.isModLoaded("MineTweaker3");
 		NEI = Loader.isModLoaded("NotEnoughItems");
         PHC = Loader.isModLoaded("harvestcraft");
         PHN = Loader.isModLoaded("harvestthenether");
@@ -29,21 +28,13 @@ public final class Integration
 		chisel = Loader.isModLoaded("chisel");
 		duraDisplay = Loader.isModLoaded("duradisplay");
 		avaritia = Loader.isModLoaded("Avaritia");
+		botania = Loader.isModLoaded("Botania");
+		TConstruct = Loader.isModLoaded("TConstruct");
 	}
 
 	public static void init()
 	{
 		modChecks();
-
-		if (mtweak) {
-            PELogger.logInfo("Try to integrate with MineTweaker 3");
-			try {
-				TweakInit.init();
-			} catch (Throwable e) {
-                mtweak = false;
-				e.printStackTrace();
-			}
-		}
 
 		if (NEI) {
             PELogger.logInfo("Try to integrate with NotEnoughItems");
@@ -102,6 +93,16 @@ public final class Integration
 				duraDisplay = false;
 				e.printStackTrace();
 				PELogger.logInfo("Cannot **hack** DuraDisplay! I hate it!");
+			}
+		}
+
+		if (TConstruct) {
+			PELogger.logInfo("Try to integrate with Tinkers' Construct");
+			try {
+				TConstructInit.init();
+			} catch (Throwable e) {
+				TConstruct = false;
+				e.printStackTrace();
 			}
 		}
 	}
