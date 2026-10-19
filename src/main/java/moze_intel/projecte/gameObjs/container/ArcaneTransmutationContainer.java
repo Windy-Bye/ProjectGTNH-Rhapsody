@@ -1,15 +1,19 @@
 package moze_intel.projecte.gameObjs.container;
 
+import moze_intel.projecte.emc.EMCMapper;
 import moze_intel.projecte.gameObjs.container.inventory.TransmutationInventory;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotConsume;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotInput;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotLock;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotOutput;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotUnlearn;
+import moze_intel.projecte.network.PacketHandler;
+import moze_intel.projecte.network.packets.ArcaneTransmutationEmcPKT;
 import moze_intel.projecte.playerData.Transmutation;
 import moze_intel.projecte.utils.EMCHelper;
 import moze_intel.projecte.utils.ItemHelper;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCraftResult;
@@ -18,6 +22,10 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.inventory.SlotCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
+import net.minecraftforge.oredict.OreDictionary;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ArcaneTransmutationContainer extends TransmutationContainer {
 	public InventoryCrafting craftMatrix = new InventoryCrafting(this, 3, 3);
@@ -253,22 +261,24 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 	}
 
 	public void clearCrafting(EntityPlayer player) {
-		boolean emcUpdate = false;
+		boolean emcChanged = false;
 		for (int i = 0; i < this.craftMatrix.getSizeInventory(); i++) {
 			ItemStack stack = this.craftMatrix.getStackInSlot(i);
 			if (stack == null) continue;
-			if (EMCHelper.doesItemHaveEmc(stack) && Transmutation.hasKnowledgeForStack(stack, player)) {
-				double emcValue = EMCHelper.getEmcValue(stack) * stack.stackSize;
-				Transmutation.setEmc(player, Transmutation.getEmc(player) + emcValue);
-				emcUpdate = true;
+			if (isCreatableFromEmc(player, stack)) {
+				// 打开界面期间 EMC 的权威值是 transmutationInventory.emc，写 Transmutation 会被关界面时覆写
+				this.transmutationInventory.addEmc(emcValueOf(stack) * stack.stackSize);
 				this.craftMatrix.setInventorySlotContents(i, null);
+				emcChanged = true;
 			} else {
-				ItemHelper.pushStackInInv(player.inventory, stack);
-				if (stack.stackSize == 0) this.craftMatrix.setInventorySlotContents(i, null);
+				// 背包满时剩余必须留在格子里，不能丢
+				ItemStack remainder = ItemHelper.pushStackInInv(player.inventory, stack);
+				this.craftMatrix.setInventorySlotContents(i, remainder);
 			}
 		}
-		if (emcUpdate) Transmutation.sync(player);
 		this.onCraftMatrixChanged(this.craftMatrix);
+		if (emcChanged && player instanceof EntityPlayerMP)
+			PacketHandler.sendTo(new ArcaneTransmutationEmcPKT(this.transmutationInventory.emc), (EntityPlayerMP) player);
 	}
 
 	public void rotateCrafting(boolean clockwise) {
@@ -344,54 +354,160 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 		this.balanceCrafting();
 	}
 
-	// --- 将这个方法加在 ArcaneTransmutationContainer.java 的最下面 ---
+	// --- NEI 一键填装配方 ---
 
-	public void fillRecipe(EntityPlayer player, ItemStack[] recipe) {
-		// 1. 先把当前网格里的东西退回去（变成 EMC 或塞回背包）
-		this.clearCrafting(player);
-		boolean emcUpdated = false;
+	/**
+	 * target 的通配符损伤匹配任意损伤；NBT 是否参与比较跟随 EMCMapper.enableNBTprocess。
+	 */
+	public static boolean matchesStack(ItemStack target, ItemStack other) {
+		if (target == null || other == null || target.getItem() == null || other.getItem() == null) return false;
+		if (target.getItem() != other.getItem()) return false;
 
-		// 2. 遍历配方的 9 个格子
-		for (int i = 0; i < 9; i++) {
-			ItemStack target = recipe[i];
-			if (target == null) continue;
+		boolean wildcard = target.getItemDamage() == OreDictionary.WILDCARD_VALUE;
+		if (!wildcard && target.getItemDamage() != other.getItemDamage()) return false;
 
-			boolean foundInInv = false;
-			// 2.1 优先尝试从玩家背包里扣除
-			for (int j = 0; j < player.inventory.mainInventory.length; j++) {
-				ItemStack invStack = player.inventory.mainInventory[j];
-				// 模糊匹配：物品 ID 和 损伤值 相同即可
-				if (invStack != null && invStack.getItem() == target.getItem() && invStack.getItemDamage() == target.getItemDamage()) {
-					ItemStack copy = invStack.copy();
-					copy.stackSize = 1;
-					this.craftMatrix.setInventorySlotContents(i, copy);
-					player.inventory.decrStackSize(j, 1);
-					foundInInv = true;
+		if (!EMCMapper.enableNBTprocess) return true;
+		return wildcard ? ItemStack.areItemStackTagsEqual(target, other) : ItemHelper.areItemStacksEqual(target, other);
+	}
+
+	/**
+	 * 查 EMC 前的归一化：emc.SimpleStack 不做通配符/无子类型损伤处理，原样查表会查不到。
+	 */
+	public static ItemStack cleanForEmc(ItemStack stack) {
+		if (stack == null || stack.getItem() == null) return null;
+		ItemStack clean = stack.copy();
+		clean.stackSize = 1;
+		if (clean.getItemDamage() == OreDictionary.WILDCARD_VALUE) clean.setItemDamage(0);
+		else if (!clean.getHasSubtypes() && clean.getMaxDamage() != 0) clean.setItemDamage(0);
+		return clean;
+	}
+
+	public static double emcValueOf(ItemStack stack) {
+		ItemStack clean = cleanForEmc(stack);
+		return clean == null ? 0 : EMCHelper.getEmcValue(clean);
+	}
+
+	public static boolean isCreatableFromEmc(EntityPlayer player, ItemStack stack) {
+		ItemStack clean = cleanForEmc(stack);
+		return clean != null && EMCHelper.getEmcValue(clean) > 0 && Transmutation.hasKnowledgeForStack(clean, player);
+	}
+
+	public void fillRecipe(EntityPlayer player, List<List<ItemStack>> recipe) {
+		if (player.worldObj.isRemote) return;
+
+		clearCrafting(player);
+
+		boolean[] done = new boolean[9];
+
+		// 第一遍：全部格子，只用背包
+		for (int slot = 0; slot < 9; slot++) {
+			List<ItemStack> candidates = candidatesAt(recipe, slot);
+			if (candidates.isEmpty()) continue;
+			int required = requiredOf(candidates);
+			if (required <= 0) continue;
+
+			for (ItemStack candidate : candidates) {
+				if (candidate == null || asStack(candidate, required) == null) continue;
+
+				List<ItemStack> taken = new ArrayList<>();
+				if (takeFromInventory(player, candidate, required, taken)) {
+					// 落格必须用真正扣下来的那件的身份；cleanForEmc 会把有耐久的物品 damage 归零，不能当身份用
+					ItemStack placed = taken.isEmpty() ? asStack(candidate, required) : taken.get(0).copy();
+					placed.stackSize = required;
+					this.craftMatrix.setInventorySlotContents(slot, placed);
+					done[slot] = true;
+					break;
+				}
+
+				// 取不满：已取出的放回背包
+				ItemStack leftover = refundToInventory(player, taken);
+				if (leftover != null) {
+					// 背包满时的降级：宁可少填也不丢料。这一格数量不足、配方匹配不上，也不会再由第二遍补足
+					this.craftMatrix.setInventorySlotContents(slot, leftover);
+					done[slot] = true;
 					break;
 				}
 			}
+		}
 
-			if (foundInInv) continue;
+		// 第二遍：第一遍没填成的格子，用已解锁知识 + EMC 补，候选按 EMC 升序取最便宜
+		for (int slot = 0; slot < 9; slot++) {
+			if (done[slot] || this.craftMatrix.getStackInSlot(slot) != null) continue;
 
-			// 2.2 如果背包里没有，尝试从 EMC 知识库里凭空变出来！
-			ItemStack cleanTarget = target.copy();
-			cleanTarget.stackSize = 1; // 只生成 1 个
+			List<ItemStack> candidates = candidatesAt(recipe, slot);
+			if (candidates.isEmpty()) continue;
+			int required = requiredOf(candidates);
+			if (required <= 0) continue;
 
-			if (EMCHelper.doesItemHaveEmc(cleanTarget) && Transmutation.hasKnowledgeForStack(cleanTarget, player)) {
-				double emcCost = EMCHelper.getEmcValue(cleanTarget);
-				if (Transmutation.getEmc(player) >= emcCost) {
-					// 扣钱，变物！
-					Transmutation.setEmc(player, Transmutation.getEmc(player) - emcCost);
-					emcUpdated = true;
-					this.craftMatrix.setInventorySlotContents(i, cleanTarget);
-				}
+			List<ItemStack> creatable = new ArrayList<>();
+			for (ItemStack candidate : candidates) {
+				if (candidate != null && isCreatableFromEmc(player, candidate) && emcValueOf(candidate) > 0)
+					creatable.add(candidate);
+			}
+			creatable.sort((a, b) -> Double.compare(emcValueOf(a), emcValueOf(b)));
+
+			for (ItemStack candidate : creatable) {
+				ItemStack placed = asStack(candidate, required);
+				if (placed == null) continue;
+
+				double cost = emcValueOf(candidate) * required;
+				if (cost > this.transmutationInventory.emc) continue; // 缺料就留空
+
+				this.transmutationInventory.removeEmc(cost);
+				this.craftMatrix.setInventorySlotContents(slot, placed);
+				break;
 			}
 		}
 
-		// 3. 如果扣了 EMC，同步给客户端，并刷新合成输出
-		if (emcUpdated) {
-			Transmutation.sync(player);
-		}
 		this.onCraftMatrixChanged(this.craftMatrix);
+		this.transmutationInventory.updateOutputs();
+	}
+
+	private static List<ItemStack> candidatesAt(List<List<ItemStack>> recipe, int slot) {
+		if (recipe == null || slot >= recipe.size() || recipe.get(slot) == null) return new ArrayList<>();
+		return recipe.get(slot);
+	}
+
+	private static int requiredOf(List<ItemStack> candidates) {
+		for (ItemStack stack : candidates) {
+			if (stack != null) return Math.max(1, stack.stackSize);
+		}
+		return 0;
+	}
+
+	private static ItemStack asStack(ItemStack stack, int size) {
+		ItemStack clean = cleanForEmc(stack);
+		if (clean != null) clean.stackSize = Math.max(1, size);
+		return clean;
+	}
+
+	private static boolean takeFromInventory(EntityPlayer player, ItemStack target, int required, List<ItemStack> taken) {
+		int collected = 0;
+		ItemStack identity = null;
+		for (int i = 0; i < player.inventory.mainInventory.length && collected < required; i++) {
+			ItemStack invStack = player.inventory.mainInventory[i];
+			if (invStack == null || invStack.stackSize <= 0 || !matchesStack(target, invStack)) continue;
+			// 只从同一种身份的堆里取，避免把 damage 不同的物品混着填进一格（通配符候选时才会出现）
+			if (identity != null && !ItemHelper.areItemStacksEqual(identity, invStack)) continue;
+
+			ItemStack removed = player.inventory.decrStackSize(i, Math.min(required - collected, invStack.stackSize));
+			if (removed == null) continue;
+			if (identity == null) identity = removed.copy();
+			taken.add(removed);
+			collected += removed.stackSize;
+		}
+		return collected >= required;
+	}
+
+	private static ItemStack refundToInventory(EntityPlayer player, List<ItemStack> taken) {
+		ItemStack leftover = null;
+		for (ItemStack stack : taken) {
+			ItemStack remainder = ItemHelper.pushStackInInv(player.inventory, stack);
+			if (remainder == null) continue;
+			if (leftover == null) leftover = remainder;
+			else if (ItemHelper.areItemStacksEqual(leftover, remainder)) leftover.stackSize += remainder.stackSize;
+		}
+		taken.clear();
+		return leftover;
 	}
 }
