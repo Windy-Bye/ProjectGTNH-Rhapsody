@@ -33,6 +33,9 @@ import moze_intel.projecte.network.packets.SyncBagDataPKT;
 import moze_intel.projecte.network.packets.SyncEmcPKT;
 import moze_intel.projecte.network.packets.SyncPedestalPKT;
 import moze_intel.projecte.network.packets.UpdateGemModePKT;
+import moze_intel.projecte.network.packets.ArcaneTabletButtonPKT;
+import moze_intel.projecte.network.packets.ArcaneRecipeTransferPKT;
+import moze_intel.projecte.network.packets.ArcaneTransmutationEmcPKT;
 import moze_intel.projecte.utils.PELogger;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.Packet;
@@ -73,6 +76,12 @@ public final class PacketHandler
 		HANDLER.registerMessage(HistoryRequestPKT.class, HistoryRequestPKT.class, 22, Side.SERVER);
 		HANDLER.registerMessage(HistorySyncPKT.class, HistorySyncPKT.class, 23, Side.CLIENT);
 		HANDLER.registerMessage(MercurialTransformPKT.class, MercurialTransformPKT.class, 24, Side.SERVER);
+		HANDLER.registerMessage(KnowledgeChangePKT.Handler.class, KnowledgeChangePKT.class, 25, Side.CLIENT);
+		HANDLER.registerMessage(ArcaneTabletButtonPKT.class, ArcaneTabletButtonPKT.class, 26, Side.SERVER);
+		HANDLER.registerMessage(ArcaneRecipeTransferPKT.class, ArcaneRecipeTransferPKT.class, 27, Side.SERVER);
+		HANDLER.registerMessage(ArcaneTransmutationEmcPKT.class, ArcaneTransmutationEmcPKT.class, 28, Side.CLIENT);
+
+
 	}
 
 	public static Packet getMCPacket(IMessage message)
