@@ -15,6 +15,7 @@ import net.minecraft.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 
@@ -38,6 +39,8 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 		for (int i = 0; i < SLOTS; i++)
 			slots.add(new ArrayList<ItemStack>());
 
+		Set<String> knowledgeIndex = ArcaneTransmutationContainer.knowledgeIndexOf(player);
+
 		for (PositionedStack positioned : ingredients) {
 			if (positioned == null) return;
 
@@ -51,7 +54,7 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 			if (col < 0 || col >= 3 || row < 0 || row >= 3) return;
 			if (positioned.items == null || positioned.items.length == 0) return;
 
-			appendCandidates(player, positioned.items, requiredOf(positioned.items), slots.get(row * 3 + col));
+			appendCandidates(player, knowledgeIndex, positioned.items, requiredOf(positioned.items), slots.get(row * 3 + col));
 		}
 
 		PacketHandler.sendToServer(new ArcaneRecipeTransferPKT(slots));
@@ -74,6 +77,8 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 				invMirror.add(stack.copy());
 		}
 
+		// 预览每帧都会走一遍：知识库索引只建一次，否则每帧几十次 O(知识库) 线性扫描
+		Set<String> knowledgeIndex = ArcaneTransmutationContainer.knowledgeIndexOf(player);
 		List<ItemOverlayState> states = new ArrayList<>();
 		for (PositionedStack positioned : recipe.getIngredientStacks(recipeIndex)) {
 			// slot 为 null 的 ItemOverlayState 会让 NEI 的 draw() 读 relx/rely 时 NPE，遇到就整只交回默认实现
@@ -90,7 +95,7 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 				if (candidate == null || present) continue;
 				List<ItemStack> invCopy = copyOf(invMirror);
 				double[] budgetCopy = { emcBudget[0] };
-				if (consume(player, invCopy, budgetCopy, candidate, required)) {
+				if (consume(knowledgeIndex, invCopy, budgetCopy, candidate, required)) {
 					invMirror = invCopy;
 					emcBudget = budgetCopy;
 					present = true;
@@ -104,7 +109,7 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 	/**
 	 * 背包里有的优先（保持 NEI 给出的候选顺序），再用「已解锁知识 + EMC 价值 > 0」按 EMC 升序补齐。
 	 */
-	private static void appendCandidates(EntityPlayer player, ItemStack[] items, int required, List<ItemStack> out) {
+	private static void appendCandidates(EntityPlayer player, Set<String> knowledgeIndex, ItemStack[] items, int required, List<ItemStack> out) {
 		for (ItemStack item : items) {
 			if (out.size() >= MAX_CANDIDATES) return;
 			if (item == null || !hasInInventory(player, item) || containsItem(out, item)) continue;
@@ -114,7 +119,7 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 		List<ItemStack> creatable = new ArrayList<>();
 		for (ItemStack item : items) {
 			if (item == null || containsItem(out, item) || containsItem(creatable, item)) continue;
-			if (ArcaneTransmutationContainer.isCreatableFromEmc(player, item))
+			if (ArcaneTransmutationContainer.isCreatableFromEmc(knowledgeIndex, item))
 				creatable.add(item);
 		}
 		creatable.sort((a, b) -> Double.compare(ArcaneTransmutationContainer.emcValueOf(a), ArcaneTransmutationContainer.emcValueOf(b)));
@@ -125,7 +130,7 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 		}
 	}
 
-	private static boolean consume(EntityPlayer player, List<ItemStack> inv, double[] emcBudget, ItemStack target, int required) {
+	private static boolean consume(Set<String> knowledgeIndex, List<ItemStack> inv, double[] emcBudget, ItemStack target, int required) {
 		int remaining = required;
 		for (ItemStack stack : inv) {
 			if (remaining <= 0) break;
@@ -136,7 +141,7 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 		}
 		if (remaining <= 0) return true;
 
-		if (!ArcaneTransmutationContainer.isCreatableFromEmc(player, target)) return false;
+		if (!ArcaneTransmutationContainer.isCreatableFromEmc(knowledgeIndex, target)) return false;
 		double cost = ArcaneTransmutationContainer.emcValueOf(target) * remaining;
 		if (cost > emcBudget[0]) return false;
 

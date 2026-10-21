@@ -3,6 +3,7 @@ package moze_intel.projecte.gameObjs.gui;
 
 import moze_intel.projecte.PECore;
 import moze_intel.projecte.gameObjs.container.ArcaneTransmutationContainer;
+import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotOutput;
 import moze_intel.projecte.network.PacketHandler;
 import moze_intel.projecte.network.packets.ArcaneTabletButtonPKT;
 import moze_intel.projecte.utils.Constants;
@@ -13,6 +14,7 @@ import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Slot;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 import org.lwjgl.input.Keyboard;
@@ -78,6 +80,34 @@ public class GUIArcaneTransmutation extends GuiContainer {
 
 	private static boolean isMouseOver(int mouseX, int mouseY, int x, int y, int width, int height) {
 		return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+	}
+
+	@Override
+	public void updateScreen() {
+		super.updateScreen();
+		this.textBoxFilter.updateCursorCounter();
+	}
+
+	@Override
+	public void onGuiClosed() {
+		super.onGuiClosed();
+		container.transmutationInventory.learnFlag = 0;
+		container.transmutationInventory.unlearnFlag = 0;
+	}
+
+	// NEI 用 ASM 把 GuiContainer.handleMouseClick 换成了自己的 GuiContainerManager.handleSlotClick，
+	// 而 TransmutationContainer.slotClick 的 isCalledByNEI() 会凭这个调用栈认定是 NEI 操作并直接返回 null，
+	// 导致客户端每次点击都被服务端判为事务不一致而回滚（点了没反应、关界面才生效）。
+	// 这里与 GUITransmutation 保持一致，直接走 playerController.windowClick，绕开被替换的父类方法。
+	@Override
+	protected void handleMouseClick(Slot slotIn, int slotId, int clickedButton, int clickType) {
+		if (slotIn instanceof SlotOutput && clickType == 4)
+			return; // 禁止从输出槽位中丢弃物品
+
+		if (slotIn != null)
+			slotId = slotIn.slotNumber;
+
+		this.mc.playerController.windowClick(this.inventorySlots.windowId, slotId, clickedButton, clickType, this.mc.thePlayer);
 	}
 
 	// 翻页可用性随页码/过滤结果变化，翻页、改过滤条件后都要重算
@@ -170,7 +200,7 @@ public class GUIArcaneTransmutation extends GuiContainer {
 
 	@Override
 	protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-		String emc = "EMC: " + Constants.EMC_FORMATTER.format(container.transmutationInventory.emc);
+		String emc = StatCollector.translateToLocal("pe.emc.emc_tooltip_prefix") + " " + Constants.EMC_FORMATTER.format(container.transmutationInventory.emc);
 		int fontWidth = this.fontRendererObj.getStringWidth(emc);
 		this.fontRendererObj.drawString(emc, 76 + (176 - fontWidth) / 2, -10, 0xFFFFFF);
 	}

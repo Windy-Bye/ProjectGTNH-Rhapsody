@@ -2,6 +2,7 @@ package moze_intel.projecte.gameObjs.container;
 
 import moze_intel.projecte.emc.EMCMapper;
 import moze_intel.projecte.gameObjs.container.inventory.TransmutationInventory;
+import moze_intel.projecte.gameObjs.container.slots.transmutation.ArcaneCraftingSlot;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotConsume;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotInput;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotLock;
@@ -19,13 +20,15 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCraftResult;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.inventory.Slot;
-import net.minecraft.inventory.SlotCrafting;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ArcaneTransmutationContainer extends TransmutationContainer {
 	public InventoryCrafting craftMatrix = new InventoryCrafting(this, 3, 3);
@@ -173,7 +176,7 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 		}
 
 		// 添加合成输出槽 (ID 63)
-		this.addSlotToContainer(new SlotCrafting(player, this.craftMatrix, this.craftResult, 0, 53, 75));
+		this.addSlotToContainer(new ArcaneCraftingSlot(this.transmutationInventory, player, this.craftMatrix, this.craftResult, 0, 53, 75));
 
 		// 添加合成网格 (ID 64-72)
 		for (int i = 0; i < 3; i++)
@@ -199,18 +202,10 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 		}
 	}
 
-	// 修复普通的鼠标点击导致不刷新的问题，并添加合成槽的自动学习
+	// 修复普通的鼠标点击导致不刷新的问题（合成输出槽的学习由 ArcaneCraftingSlot 负责）
 	@Override
 	public ItemStack slotClick(int slot, int button, int clickType, EntityPlayer player) {
 		ItemStack result = super.slotClick(slot, button, clickType, player);
-
-		// 63 是合成输出槽。玩家拿起了物品后触发学习
-		if (slot == 63 && result != null) {
-			ItemStack copy = result.copy();
-			copy.stackSize = 1; // 规范化数量为 1
-			if (EMCHelper.doesItemHaveEmc(copy))
-				this.transmutationInventory.handleKnowledge(copy);
-		}
 
 		// 保险机制：只要和原版的输入/消耗槽互动过，强制刷新右侧列表
 		if (slot >= 0 && slot <= 9)
@@ -219,7 +214,6 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 		return result;
 	}
 
-	// 修复 Shift 快捷点击的自动学习和刷新
 	@Override
 	public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
 		if (slotIndex >= 63) {
@@ -229,18 +223,8 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 			ItemStack itemstack1 = slot.getStack();
 			ItemStack itemstack = itemstack1.copy();
 
-			if (slotIndex == 63) {
-				itemstack1.getItem().onCreated(itemstack1, player.worldObj, player);
-
-				// Shift 点击时的自动学习逻辑
-				if (EMCHelper.doesItemHaveEmc(itemstack1))
-					this.transmutationInventory.handleKnowledge(itemstack1);
-
-				if (!this.mergeItemStack(itemstack1, 27, 63, true))
-					return null;
-				slot.onSlotChange(itemstack1, itemstack);
-			}
-			else if (!this.mergeItemStack(itemstack1, 27, 63, true))
+			// 与 ContainerWorkbench 同序：先合并，再清槽/通知，最后才触发拾取；onCreated 由 SlotCrafting 内部触发，不能在这里补
+			if (!this.mergeItemStack(itemstack1, 27, 63, true))
 				return null;
 
 			if (itemstack1.stackSize == 0) slot.putStack(null);
@@ -321,7 +305,8 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 			int remainder = totalCount % group.size();
 			for (int slotIndex : group) this.craftMatrix.getStackInSlot(slotIndex).stackSize = countPerSlot;
 			int idx = 0;
-			while (remainder > 0) {
+			// 有界保护：stackSize 超过槽上限时可能没有任何槽能再加，不能死循环
+			for (int attempt = 0; attempt < 9 && remainder > 0; attempt++) {
 				ItemStack stack = this.craftMatrix.getStackInSlot(group.get(idx));
 				if (stack.stackSize < stack.getMaxStackSize()) { stack.stackSize++; remainder--; }
 				idx++; if (idx >= group.size()) idx = 0;
@@ -392,12 +377,45 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 		return clean != null && EMCHelper.getEmcValue(clean) > 0 && Transmutation.hasKnowledgeForStack(clean, player);
 	}
 
+	/**
+	 * 与 Transmutation.hasKnowledgeForStack 相同的相等语义（NBT 是否参与比较跟随 EMCMapper.enableNBTprocess）。
+	 */
+	public static String knowledgeKey(ItemStack stack) {
+		if (stack == null || stack.getItem() == null) return null;
+		String key = Item.getIdFromItem(stack.getItem()) + ":" + stack.getItemDamage();
+		if (!EMCMapper.enableNBTprocess || stack.stackTagCompound == null) return key;
+		return key + ":" + stack.stackTagCompound;
+	}
+
+	/**
+	 * 把玩家知识库建成 key 集合。知识库有几千条时，逐个候选做线性扫描会把
+	 * NEI 配方预览（每帧一次）和 NEI 一键摆料拖出可见卡顿。
+	 */
+	public static Set<String> knowledgeIndexOf(EntityPlayer player) {
+		List<ItemStack> knowledge = Transmutation.getKnowledge(player);
+		Set<String> index = new HashSet<>((int) (knowledge.size() / 0.75F) + 16);
+		for (ItemStack stack : knowledge) {
+			String key = knowledgeKey(stack);
+			if (key != null) index.add(key);
+		}
+		return index;
+	}
+
+	public static boolean isCreatableFromEmc(Set<String> knowledgeIndex, ItemStack stack) {
+		ItemStack clean = cleanForEmc(stack);
+		if (clean == null || EMCHelper.getEmcValue(clean) <= 0) return false;
+		String key = knowledgeKey(clean);
+		return key != null && knowledgeIndex.contains(key);
+	}
+
 	public void fillRecipe(EntityPlayer player, List<List<ItemStack>> recipe) {
 		if (player.worldObj.isRemote) return;
 
 		clearCrafting(player);
 
 		boolean[] done = new boolean[9];
+		// 索引只建一次：9 格 × 候选的「是否已解锁」判断不再逐次线性扫知识库
+		Set<String> knowledgeIndex = knowledgeIndexOf(player);
 
 		// 第一遍：全部格子，只用背包
 		for (int slot = 0; slot < 9; slot++) {
@@ -441,7 +459,7 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 
 			List<ItemStack> creatable = new ArrayList<>();
 			for (ItemStack candidate : candidates) {
-				if (candidate != null && isCreatableFromEmc(player, candidate) && emcValueOf(candidate) > 0)
+				if (candidate != null && isCreatableFromEmc(knowledgeIndex, candidate) && emcValueOf(candidate) > 0)
 					creatable.add(candidate);
 			}
 			creatable.sort((a, b) -> Double.compare(emcValueOf(a), emcValueOf(b)));
