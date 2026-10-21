@@ -20,7 +20,7 @@ public class SlotConsume extends Slot
 	@Override
 	public void putStack(ItemStack stack)
 	{
-		if (stack == null) return;
+		if (stack == null || stack.getItem() == null) return;
 
 		// 没有 super.putStack(stack)，这就是为什么物品放进来就消失了？
 

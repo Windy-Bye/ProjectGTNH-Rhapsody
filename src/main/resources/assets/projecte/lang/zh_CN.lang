@@ -170,6 +170,15 @@ pe.arcana.mode.2=丰收
 pe.arcana.mode.3=疾风
 pe.arcana.inactive=关闭!
 
+pe.arcane_tablet.rotate=顺时针旋转
+pe.arcane_tablet.rotate.shift=逆时针旋转
+pe.arcane_tablet.balance=平衡
+pe.arcane_tablet.balance.shift=分散
+pe.arcane_tablet.focus_search=聚焦搜索框
+pe.arcane_tablet.clear=清空合成网格
+pe.arcane_tablet.page_prev=上一页
+pe.arcane_tablet.page_next=下一页
+
 pe.archangel.pedestal1=射击附近的怪物
 pe.archangel.pedestal2=每%s射击一次
 

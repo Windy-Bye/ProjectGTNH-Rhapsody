@@ -74,6 +74,7 @@ item.pe_void_ring.name=Void Ring
 item.pe_zero_ring.name=Zero Ring
 item.pe_tome.name=Tome of Knowledge
 item.pe_transmutation_tablet.name=Transmutation Tablet
+item.pe_arcane_transmutation_tablet.name=Arcane Transmutation Tablet
 item.pe_manual.name=Book of the Alchemist [WIP]
 
 pe.manual.tooltip1=Vol. 2
@@ -145,6 +146,15 @@ pe.arcana.mode.1=Ignition
 pe.arcana.mode.2=Harvest
 pe.arcana.mode.3=SWRG
 pe.arcana.inactive=Inactive!
+
+pe.arcane_tablet.rotate=Rotate (Clockwise)
+pe.arcane_tablet.rotate.shift=Rotate (Counter-Clockwise)
+pe.arcane_tablet.balance=Balance
+pe.arcane_tablet.balance.shift=Spread
+pe.arcane_tablet.focus_search=Focus Search Box
+pe.arcane_tablet.clear=Clear Crafting Grid
+pe.arcane_tablet.page_prev=Previous Page
+pe.arcane_tablet.page_next=Next Page
 
 pe.archangel.pedestal1=Fires arrows at nearby mobs
 pe.archangel.pedestal2=Triggers every %s

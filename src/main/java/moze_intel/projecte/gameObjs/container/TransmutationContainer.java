@@ -1,5 +1,6 @@
 package moze_intel.projecte.gameObjs.container;
 
+import cpw.mods.fml.common.Loader;
 import moze_intel.projecte.gameObjs.ObjHandler;
 import moze_intel.projecte.gameObjs.container.inventory.TransmutationInventory;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotConsume;
@@ -135,10 +136,16 @@ public class TransmutationContainer extends Container
 		}
 	}
 
+	// 未安装 NEI 时整段判断短路，省掉每次点击的栈回溯
+	private static final boolean NEI_PRESENT = Loader.isModLoaded("NotEnoughItems");
+
 	private static boolean isCalledByNEI() {
+		if (!NEI_PRESENT)
+			return false;
+
 		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-		final int depth = Math.max(stack.length, 13);
-		// 跳过 getStackTrace(), isCalledByNEI(), slotClick()，最多检查 10 层堆栈
+		// 跳过 getStackTrace(), isCalledByNEI(), slotClick()，只看最近 10 帧：NEI 的入口都在上方 3-6 帧内
+		final int depth = Math.min(stack.length, 13);
 		for (int i = 3; i < depth; i++) {
 			String className = stack[i].getClassName(), methodName = stack[i].getMethodName();
 			if ((className.equals("codechicken.nei.guihook.GuiContainerManager") && methodName.equals("handleSlotClick"))
