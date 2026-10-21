@@ -77,8 +77,9 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 				invMirror.add(stack.copy());
 		}
 
-		// 预览每帧都会走一遍：知识库索引只建一次，否则每帧几十次 O(知识库) 线性扫描
-		Set<String> knowledgeIndex = ArcaneTransmutationContainer.knowledgeIndexOf(player);
+		// 预览每帧都会走一遍：知识库索引惰性构建，只有真要用 EMC 补料时才付 O(知识库) 的代价
+		@SuppressWarnings("unchecked")
+		Set<String>[] knowledgeIndex = new Set[1];
 		List<ItemOverlayState> states = new ArrayList<>();
 		for (PositionedStack positioned : recipe.getIngredientStacks(recipeIndex)) {
 			// slot 为 null 的 ItemOverlayState 会让 NEI 的 draw() 读 relx/rely 时 NPE，遇到就整只交回默认实现
@@ -93,11 +94,10 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 			boolean present = false;
 			for (ItemStack candidate : positioned.items) {
 				if (candidate == null || present) continue;
-				List<ItemStack> invCopy = copyOf(invMirror);
-				double[] budgetCopy = { emcBudget[0] };
-				if (consume(knowledgeIndex, invCopy, budgetCopy, candidate, required)) {
-					invMirror = invCopy;
-					emcBudget = budgetCopy;
+				// consume 自己负责失败回滚，成功才保留扣除结果，不再每候选复制整份背包
+				double[] budget = { emcBudget[0] };
+				if (consume(player, knowledgeIndex, invMirror, budget, candidate, required)) {
+					emcBudget[0] = budget[0];
 					present = true;
 				}
 			}
@@ -130,28 +130,47 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 		}
 	}
 
-	private static boolean consume(Set<String> knowledgeIndex, List<ItemStack> inv, double[] emcBudget, ItemStack target, int required) {
-		int remaining = required;
-		for (ItemStack stack : inv) {
-			if (remaining <= 0) break;
+	/**
+	 * 与服务端 fillRecipe 同口径：背包能凑满就只用背包；凑不满则这笔取料整笔退回，
+	 * 改由 EMC 全额支付（服务端第一遍取不满时也是整笔退回背包、第二遍按全额扣 EMC）。
+	 * 失败时自行回滚，成功才把扣除结果留在 inv 上。
+	 */
+	private static boolean consume(EntityPlayer player, Set<String>[] knowledgeIndex, List<ItemStack> inv,
+		double[] emcBudget, ItemStack target, int required) {
+		List<int[]> taken = new ArrayList<>(2);
+		int collected = 0;
+		for (int i = 0; i < inv.size() && collected < required; i++) {
+			ItemStack stack = inv.get(i);
 			if (stack == null || stack.stackSize <= 0 || !ArcaneTransmutationContainer.matchesStack(target, stack)) continue;
-			int take = Math.min(remaining, stack.stackSize);
+			int take = Math.min(required - collected, stack.stackSize);
 			stack.stackSize -= take;
-			remaining -= take;
+			taken.add(new int[] { i, take });
+			collected += take;
 		}
-		if (remaining <= 0) return true;
+		if (collected >= required) return true;
 
-		if (!ArcaneTransmutationContainer.isCreatableFromEmc(knowledgeIndex, target)) return false;
-		double cost = ArcaneTransmutationContainer.emcValueOf(target) * remaining;
+		restore(inv, taken);
+		if (knowledgeIndex[0] == null)
+			knowledgeIndex[0] = ArcaneTransmutationContainer.knowledgeIndexOf(player);
+		if (!ArcaneTransmutationContainer.isCreatableFromEmc(knowledgeIndex[0], target)) return false;
+
+		double cost = ArcaneTransmutationContainer.emcValueOf(target) * required;
 		if (cost > emcBudget[0]) return false;
 
 		emcBudget[0] -= cost;
 		return true;
 	}
 
+	private static void restore(List<ItemStack> inv, List<int[]> taken) {
+		for (int i = taken.size() - 1; i >= 0; i--) {
+			int[] entry = taken.get(i);
+			inv.get(entry[0]).stackSize += entry[1];
+		}
+	}
+
 	private static int requiredOf(ItemStack[] items) {
 		for (ItemStack stack : items) {
-			if (stack != null) return Math.max(1, stack.stackSize);
+			if (stack != null) return Math.max(1, Math.min(stack.stackSize, stack.getMaxStackSize()));
 		}
 		return 1;
 	}
@@ -175,14 +194,8 @@ public class NEIArcaneTransmutationHandler implements IOverlayHandler {
 
 	private static ItemStack withSize(ItemStack stack, int size) {
 		ItemStack copy = stack.copy();
-		copy.stackSize = Math.max(1, size);
+		copy.stackSize = Math.max(1, Math.min(size, copy.getMaxStackSize()));
 		return copy;
 	}
 
-	private static List<ItemStack> copyOf(List<ItemStack> list) {
-		List<ItemStack> copy = new ArrayList<>(list.size());
-		for (ItemStack stack : list)
-			copy.add(stack.copy());
-		return copy;
-	}
 }

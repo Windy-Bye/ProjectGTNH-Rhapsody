@@ -245,6 +245,14 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 	}
 
 	public void clearCrafting(EntityPlayer player) {
+		clearCrafting(player, true);
+	}
+
+	/**
+	 * syncEmc = false 时由调用方统一发包：fillRecipe 的包处理会在结算完再发一次，
+	 * 重复发会让一次 NEI 摆料推两个包。
+	 */
+	private void clearCrafting(EntityPlayer player, boolean syncEmc) {
 		boolean emcChanged = false;
 		for (int i = 0; i < this.craftMatrix.getSizeInventory(); i++) {
 			ItemStack stack = this.craftMatrix.getStackInSlot(i);
@@ -261,7 +269,7 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 			}
 		}
 		this.onCraftMatrixChanged(this.craftMatrix);
-		if (emcChanged && player instanceof EntityPlayerMP)
+		if (emcChanged && syncEmc && player instanceof EntityPlayerMP)
 			PacketHandler.sendTo(new ArcaneTransmutationEmcPKT(this.transmutationInventory.emc), (EntityPlayerMP) player);
 	}
 
@@ -356,14 +364,24 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 	}
 
 	/**
-	 * 查 EMC 前的归一化：emc.SimpleStack 不做通配符/无子类型损伤处理，原样查表会查不到。
+	 * 查 EMC 前的归一化：只处理通配符损伤。耐久必须保持原值，否则会绕过
+	 * EMCHelper.getEmcValue 里按 (maxDamage - damage) / maxDamage 的折算分支，
+	 * 让残血装备按全新价折算成 EMC。
 	 */
 	public static ItemStack cleanForEmc(ItemStack stack) {
 		if (stack == null || stack.getItem() == null) return null;
 		ItemStack clean = stack.copy();
 		clean.stackSize = 1;
 		if (clean.getItemDamage() == OreDictionary.WILDCARD_VALUE) clean.setItemDamage(0);
-		else if (!clean.getHasSubtypes() && clean.getMaxDamage() != 0) clean.setItemDamage(0);
+		return clean;
+	}
+
+	/**
+	 * 与知识库比对的归一化：知识条目本身已把「无子类型、有耐久」的物品归到 damage 0。
+	 */
+	public static ItemStack cleanForKnowledge(ItemStack stack) {
+		ItemStack clean = cleanForEmc(stack);
+		if (clean != null && !clean.getHasSubtypes() && clean.getMaxDamage() != 0) clean.setItemDamage(0);
 		return clean;
 	}
 
@@ -373,8 +391,10 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 	}
 
 	public static boolean isCreatableFromEmc(EntityPlayer player, ItemStack stack) {
-		ItemStack clean = cleanForEmc(stack);
-		return clean != null && EMCHelper.getEmcValue(clean) > 0 && Transmutation.hasKnowledgeForStack(clean, player);
+		ItemStack knowledgeStack = cleanForKnowledge(stack);
+		ItemStack emcStack = cleanForEmc(stack);
+		return knowledgeStack != null && emcStack != null && EMCHelper.getEmcValue(emcStack) > 0
+			&& Transmutation.hasKnowledgeForStack(knowledgeStack, player);
 	}
 
 	/**
@@ -402,16 +422,17 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 	}
 
 	public static boolean isCreatableFromEmc(Set<String> knowledgeIndex, ItemStack stack) {
-		ItemStack clean = cleanForEmc(stack);
-		if (clean == null || EMCHelper.getEmcValue(clean) <= 0) return false;
-		String key = knowledgeKey(clean);
+		ItemStack knowledgeStack = cleanForKnowledge(stack);
+		ItemStack emcStack = cleanForEmc(stack);
+		if (knowledgeStack == null || emcStack == null || EMCHelper.getEmcValue(emcStack) <= 0) return false;
+		String key = knowledgeKey(knowledgeStack);
 		return key != null && knowledgeIndex.contains(key);
 	}
 
 	public void fillRecipe(EntityPlayer player, List<List<ItemStack>> recipe) {
 		if (player.worldObj.isRemote) return;
 
-		clearCrafting(player);
+		clearCrafting(player, false);
 
 		boolean[] done = new boolean[9];
 		// 索引只建一次：9 格 × 候选的「是否已解锁」判断不再逐次线性扫知识库
@@ -419,6 +440,12 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 
 		// 第一遍：全部格子，只用背包
 		for (int slot = 0; slot < 9; slot++) {
+			if (this.craftMatrix.getStackInSlot(slot) != null) {
+				// clearCrafting 在背包满时会把剩余留在格子里，那是玩家的东西，不能被摆料覆盖
+				done[slot] = true;
+				continue;
+			}
+
 			List<ItemStack> candidates = candidatesAt(recipe, slot);
 			if (candidates.isEmpty()) continue;
 			int required = requiredOf(candidates);
@@ -429,9 +456,9 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 
 				List<ItemStack> taken = new ArrayList<>();
 				if (takeFromInventory(player, candidate, required, taken)) {
-					// 落格必须用真正扣下来的那件的身份；cleanForEmc 会把有耐久的物品 damage 归零，不能当身份用
+					// 落格必须用真正扣下来的那件的身份（damage/NBT 都要保真）
 					ItemStack placed = taken.isEmpty() ? asStack(candidate, required) : taken.get(0).copy();
-					placed.stackSize = required;
+					placed.stackSize = Math.min(required, placed.getMaxStackSize());
 					this.craftMatrix.setInventorySlotContents(slot, placed);
 					done[slot] = true;
 					break;
@@ -488,14 +515,15 @@ public class ArcaneTransmutationContainer extends TransmutationContainer {
 
 	private static int requiredOf(List<ItemStack> candidates) {
 		for (ItemStack stack : candidates) {
-			if (stack != null) return Math.max(1, stack.stackSize);
+			// 数量来自客户端（ArcaneRecipeTransferPKT），必须夹到该物品自身的堆叠上限
+			if (stack != null) return Math.max(1, Math.min(stack.stackSize, stack.getMaxStackSize()));
 		}
 		return 0;
 	}
 
 	private static ItemStack asStack(ItemStack stack, int size) {
 		ItemStack clean = cleanForEmc(stack);
-		if (clean != null) clean.stackSize = Math.max(1, size);
+		if (clean != null) clean.stackSize = Math.max(1, Math.min(size, clean.getMaxStackSize()));
 		return clean;
 	}
 

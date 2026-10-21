@@ -39,6 +39,15 @@ public class ArcaneRecipeTransferPKT implements IMessage, IMessageHandler<Arcane
 
 	@Override
 	public void fromBytes(ByteBuf buf) {
+		try {
+			readPayload(buf);
+		} catch (Exception e) {
+			// 载荷格式在版本间变过：读坏就当这次摆料无效，避免异常冒到网络线程
+			recipe = emptyRecipe();
+		}
+	}
+
+	private void readPayload(ByteBuf buf) {
 		List<List<ItemStack>> read = new ArrayList<>();
 		int slots = buf.readInt();
 		if (slots < 0) slots = 0;
